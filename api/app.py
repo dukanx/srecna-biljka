@@ -118,6 +118,112 @@ def delete_device(device_id):
 
 
 
+@app.route("/api/readings", methods=["GET"])
+
+def get_readings():
+
+    device_id = request.args.get("device_id")
+
+
+
+    conn = get_connection()
+
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+
+
+    if device_id:
+
+        cur.execute(
+
+            "SELECT * FROM readings WHERE device_id = %s ORDER BY recorded_at DESC",
+
+            (device_id,)
+
+        )
+
+    else:
+
+        cur.execute("SELECT * FROM readings ORDER BY recorded_at DESC LIMIT 100")
+
+
+
+    readings = cur.fetchall()
+
+    cur.close()
+
+    conn.close()
+
+
+
+    return jsonify({
+
+        "status": "success",
+
+        "count": len(readings),
+
+        "readings": readings
+
+    }), 200
+
+
+
+@app.route("/api/readings", methods=["POST"])
+
+def create_reading():
+
+    data = request.get_json()
+
+
+
+    if not data:
+
+        return jsonify({"error": "Body mora biti JSON"}), 400
+
+    if "device_id" not in data or "value" not in data or "unit" not in data:
+
+        return jsonify({"error": "Obavezna polja: device_id, value, unit"}), 400
+
+
+
+    conn = get_connection()
+
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+
+
+    cur.execute("SELECT id FROM devices WHERE id = %s", (data["device_id"],))
+
+    if cur.fetchone() is None:
+
+        cur.close()
+
+        conn.close()
+
+        return jsonify({"error": f"Uređaj sa ID={data['device_id']} ne postoji"}), 404
+
+
+
+    cur.execute(
+
+        "INSERT INTO readings (device_id, value, unit) VALUES (%s, %s, %s) RETURNING *",
+
+        (data["device_id"], data["value"], data["unit"])
+
+    )
+
+    new_reading = cur.fetchone()
+
+    conn.commit()
+
+    cur.close()
+
+    conn.close()
+
+
+
+    return jsonify(new_reading), 201
+
 if __name__ == "__main__":
     init_db()
     app.run(debug=True)
