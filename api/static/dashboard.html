@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#16a34a" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+  <title>Srećna biljka</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/static/icons/srecna-biljka-192.png">
+  <link rel="apple-touch-icon" href="/static/icons/srecna-biljka-192.png">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon" data-icon="leaf"></span>
+      <span>Srećna biljka</span>
+    </div>
+    <button id="notif-btn" class="icon-btn" type="button" aria-label="Notifikacije"></button>
+  </header>
+
+  <main>
+    <!-- Trenutno stanje: ilustrovana biljka -->
+    <section class="state-card" id="state-card" data-state="happy">
+      <div class="plant-wrap">
+        <svg class="plant" viewBox="0 0 140 150" role="img" aria-label="Stanje biljke">
+          <circle class="plant-glow" cx="70" cy="74" r="50" />
+          <!-- listovi (boja + posturu menja CSS po stanju) -->
+          <g class="leaves">
+            <path class="leaf" d="M70,66 Q56,44 70,20 Q84,44 70,66 Z" />
+            <path class="leaf" d="M68,72 Q43,67 36,40 Q61,50 68,72 Z" />
+            <path class="leaf" d="M72,72 Q97,67 104,40 Q79,50 72,72 Z" />
+            <path class="stem" d="M68.5,96 L68.5,64 Q70,60 71.5,64 L71.5,96 Z" />
+          </g>
+          <!-- saksija -->
+          <ellipse class="pot-soil" cx="70" cy="95" rx="31" ry="5" />
+          <path class="pot-rim" d="M34,92 H106 L101,104 H39 Z" />
+          <path class="pot-body" d="M41,104 H99 L92,132 H48 Z" />
+        </svg>
+      </div>
+      <div class="state-text">
+        <span class="state-badge" id="state-label">Učitavanje…</span>
+        <p class="state-reason" id="state-reason">Povezivanje sa biljkom…</p>
+      </div>
+    </section>
+
+    <!-- Poslednja očitavanja -->
+    <section>
+      <h2 class="section-title">Poslednja očitavanja</h2>
+      <div class="readings-grid" id="readings-grid"></div>
+    </section>
+
+    <!-- Istorija po senzoru -->
+    <section>
+      <div class="history-head">
+        <h2 class="section-title">Istorija</h2>
+        <select id="hours-select" aria-label="Vremenski opseg">
+          <option value="1">1h</option>
+          <option value="6">6h</option>
+          <option value="24" selected>24h</option>
+          <option value="168">7 dana</option>
+        </select>
+      </div>
+      <div class="charts" id="charts"></div>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <span class="status-dot" id="status-dot"></span>
+    <span id="status-text">Povezivanje…</span>
+  </footer>
+
+  <script src="/static/vendor/chart.umd.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,248 @@
+/* Srećna biljka — minimal/clean, auto light/dark */
+
+:root {
+  --bg: #f6f8f6;
+  --surface: #ffffff;
+  --surface-2: #eef2ee;
+  --text: #16201a;
+  --muted: #6a776d;
+  --border: #e4eae4;
+
+  --accent: #16a34a;
+  --accent-soft: #d7f0df;
+
+  --good: #16a34a;
+  --warn: #f59e0b;
+  --bad: #ef4444;
+
+  --radius: 16px;
+  --shadow: 0 1px 2px rgba(16, 32, 26, 0.04), 0 6px 20px rgba(16, 32, 26, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #1d242d;
+    --text: #e6edf3;
+    --muted: #8b97a4;
+    --border: #283039;
+
+    --accent: #2ea043;
+    --accent-soft: #11351f;
+
+    --good: #3fb950;
+    --warn: #d29922;
+    --bad: #f85149;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  padding-bottom: 3rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+svg { display: block; }
+
+/* ── Topbar ─────────────────────────────────────────── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.1rem;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 650; font-size: 1.05rem; }
+.brand-icon { color: var(--accent); display: inline-flex; }
+.brand-icon svg { width: 22px; height: 22px; }
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.icon-btn svg { width: 20px; height: 20px; }
+.icon-btn:hover { color: var(--text); }
+.icon-btn.enabled { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+
+/* ── Layout ─────────────────────────────────────────── */
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1.25rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+.section-title { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.8rem; }
+
+/* ── Stanje (ilustrovana biljka) ────────────────────── */
+.state-card {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.5rem;
+  box-shadow: var(--shadow);
+}
+.plant-wrap { flex: 0 0 110px; }
+.plant { width: 110px; height: 118px; }
+
+/* boje stanja koje koristi i glow i badge */
+.state-card[data-state="happy"]   { --state: var(--good); }
+.state-card[data-state="thirsty"] { --state: #2f9ee0; }
+.state-card[data-state="sleepy"]  { --state: #8b7bd8; }
+.state-card[data-state="angry"]   { --state: var(--bad); }
+
+.plant-glow { fill: var(--state); opacity: 0.12; transition: fill 0.5s; }
+.pot-body { fill: #b5764e; }
+.pot-rim { fill: #c98a5f; }
+.pot-soil { fill: #5a3c28; }
+.stem { fill: #4f8f54; transition: fill 0.5s; }
+
+.leaf { fill: var(--leaf, #2faa50); transition: fill 0.5s; }
+.leaves {
+  transform-box: view-box;
+  transform-origin: 70px 96px;
+  transition: transform 0.6s cubic-bezier(.34,1.2,.64,1);
+}
+
+/* posture + boja po stanju */
+.state-card[data-state="happy"]   { --leaf: #2faa50; }
+.state-card[data-state="happy"]   .leaves { transform: scaleY(1.03); }
+
+.state-card[data-state="thirsty"] { --leaf: #93c79b; }       /* bledo, uvelo */
+.state-card[data-state="thirsty"] .leaves { transform: translateY(6px) scaleY(0.86) rotate(-2deg); }
+
+.state-card[data-state="sleepy"]  { --leaf: #7fae93; }       /* prigušeno */
+.state-card[data-state="sleepy"]  .leaves { transform: translateY(3px) scaleY(0.94); }
+
+.state-card[data-state="angry"]   { --leaf: #d98a3d; }       /* ka crveno/narandžastoj */
+.state-card[data-state="angry"]   .leaves { transform: scaleY(1.05) rotate(1deg); }
+
+.state-text { flex: 1; }
+.state-badge {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 650;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  color: var(--state);
+  background: color-mix(in srgb, var(--state) 14%, transparent);
+}
+.state-reason { color: var(--muted); margin-top: 0.6rem; font-size: 0.95rem; line-height: 1.45; }
+
+/* ── Očitavanja + mini-bar ──────────────────────────── */
+.readings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.85rem;
+}
+.reading-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.95rem 1rem 1.1rem;
+  box-shadow: var(--shadow);
+}
+.reading-top { display: flex; align-items: center; gap: 0.45rem; color: var(--muted); }
+.reading-top svg { width: 17px; height: 17px; }
+.reading-name { font-size: 0.82rem; font-weight: 550; }
+.reading-value { font-size: 1.7rem; font-weight: 700; margin-top: 0.35rem; line-height: 1; }
+.reading-value .unit { font-size: 0.85rem; font-weight: 500; color: var(--muted); margin-left: 0.15rem; }
+.reading-value[data-level="good"] { color: var(--good); }
+.reading-value[data-level="warn"] { color: var(--warn); }
+.reading-value[data-level="bad"]  { color: var(--bad); }
+
+.refbar { margin-top: 0.7rem; }
+.refbar-track {
+  position: relative;
+  display: flex;
+  height: 7px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+.refbar-zone { height: 100%; }
+.refbar-zone.good { background: color-mix(in srgb, var(--good) 55%, transparent); }
+.refbar-zone.warn { background: color-mix(in srgb, var(--warn) 55%, transparent); }
+.refbar-zone.bad  { background: color-mix(in srgb, var(--bad) 55%, transparent); }
+.refbar-marker {
+  position: absolute;
+  top: 50%;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--text);
+  border: 1.5px solid var(--surface);
+  transform: translate(-50%, -50%);
+  transition: left 0.5s;
+}
+.refbar-ideal { margin-top: 0.4rem; font-size: 0.72rem; color: var(--muted); }
+.reading-time { margin-top: 0.5rem; font-size: 0.68rem; color: var(--muted); }
+
+/* ── Istorija / grafici ─────────────────────────────── */
+.history-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
+.history-head .section-title { margin-bottom: 0; }
+#hours-select {
+  padding: 0.4rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+.charts { display: flex; flex-direction: column; gap: 0.9rem; }
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  box-shadow: var(--shadow);
+}
+.chart-card h3 {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.82rem; color: var(--muted); font-weight: 600; margin-bottom: 0.5rem;
+}
+.chart-card h3 svg { width: 16px; height: 16px; }
+.chart-card canvas { width: 100% !important; height: 170px !important; }
+
+.empty { color: var(--muted); font-style: italic; padding: 0.4rem 0; }
+
+/* ── Statusbar ──────────────────────────────────────── */
+.statusbar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  display: flex; align-items: center; justify-content: center; gap: 0.45rem;
+  font-size: 0.74rem; color: var(--muted);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid var(--border);
+  padding: 0.45rem;
+}
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background 0.3s; }
+.status-dot.ok { background: var(--good); }
+.status-dot.err { background: var(--bad); }

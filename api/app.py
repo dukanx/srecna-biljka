@@ -1,4 +1,6 @@
-from flask import Flask, jsonify, request
+import os
+
+from flask import Flask, jsonify, request, send_from_directory
 import psycopg2.extras
 
 from db import get_connection, init_db  # db importuje dotenv -> .env učitan pre push modula
@@ -6,6 +8,8 @@ import push
 from plant import fetch_latest_readings, evaluate_state, STATE_LABEL
 
 app = Flask(__name__)
+
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 
 @app.route("/api/devices", methods=["GET"])
@@ -308,6 +312,26 @@ def push_test():
     return jsonify({"status": "sent", "count": sent}), 200
 
 
+# ── PWA dashboard (statika) ─────────────────────────────────────
+@app.route("/dashboard")
+def dashboard():
+    return send_from_directory(STATIC_DIR, "dashboard.html")
+
+
+@app.route("/sw.js")
+def service_worker():
+    # Service worker mora da se servira sa korena da bi scope bio "/" (kontroliše /dashboard)
+    resp = send_from_directory(STATIC_DIR, "sw.js")
+    resp.headers["Service-Worker-Allowed"] = "/"
+    resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
+@app.route("/manifest.json")
+def manifest():
+    return send_from_directory(STATIC_DIR, "manifest.json")
+
+
 if __name__ == "__main__":
     init_db()
-    app.run(debug=True)
+    app.run(debug=True, host="0.0.0.0")
