@@ -1,7 +1,8 @@
 from flask import Flask, jsonify, request
 import psycopg2.extras
 
-from db import get_connection, init_db
+from db import get_connection, init_db  # db importuje dotenv -> .env učitan pre push modula
+import push
 from plant import fetch_latest_readings, evaluate_state, STATE_LABEL
 
 app = Flask(__name__)
@@ -169,9 +170,50 @@ def create_reading():
     new_reading = cur.fetchone()
     conn.commit()
     cur.close()
-    conn.close()
 
+    # Posle svakog očitavanja proveri da li se stanje biljke promenilo i pošalji push.
+    # Greška ovde ne sme da obori upis očitavanja.
+    try:
+        _check_state_change_and_notify(conn)
+    except Exception as e:
+        print(f"[state] greška pri proveri stanja: {e}")
+
+    conn.close()
     return jsonify(new_reading), 201
+
+
+def _check_state_change_and_notify(conn):
+    """Uporedi trenutno stanje sa poslednjim logovanim; ako se promenilo -> loguj + push."""
+    readings = fetch_latest_readings(conn)
+    if not readings:
+        return
+
+    state, reason = evaluate_state(readings)
+
+    cur = conn.cursor()
+    cur.execute("SELECT state FROM plant_state_log ORDER BY recorded_at DESC LIMIT 1")
+    row = cur.fetchone()
+    last_state = row[0] if row else None
+
+    if state == last_state:
+        cur.close()
+        return
+
+    cur.execute(
+        "INSERT INTO plant_state_log (state, reason) VALUES (%s, %s)",
+        (state, reason)
+    )
+    conn.commit()
+    cur.close()
+
+    payload = {
+        "title": f"Srećna biljka — {STATE_LABEL.get(state, state)}",
+        "body": reason,
+        "state": state,
+        "url": "/dashboard",
+    }
+    sent = push.send_to_all(conn, payload)
+    print(f"[state] promena stanja -> {state}; push poslat na {sent} uređaja")
 
 
 @app.route("/api/plant/state", methods=["GET"])
@@ -220,6 +262,50 @@ def get_plant_history():
         })
 
     return jsonify(history), 200
+
+
+# ── Web Push (VAPID) ────────────────────────────────────────────
+@app.route("/api/vapid-public-key", methods=["GET"])
+def vapid_public_key():
+    return jsonify({"publicKey": push.VAPID_PUBLIC_KEY}), 200
+
+
+@app.route("/api/push/subscribe", methods=["POST"])
+def push_subscribe():
+    data = request.get_json()
+    if not data or "endpoint" not in data or "keys" not in data:
+        return jsonify({"error": "Nevalidna subscription (treba endpoint i keys)"}), 400
+
+    conn = get_connection()
+    push.add_subscription(conn, data["endpoint"], data["keys"]["p256dh"], data["keys"]["auth"])
+    conn.close()
+    return jsonify({"status": "subscribed"}), 201
+
+
+@app.route("/api/push/unsubscribe", methods=["POST"])
+def push_unsubscribe():
+    data = request.get_json()
+    if not data or "endpoint" not in data:
+        return jsonify({"error": "endpoint je obavezan"}), 400
+
+    conn = get_connection()
+    push.remove_subscription(conn, data["endpoint"])
+    conn.close()
+    return jsonify({"status": "unsubscribed"}), 200
+
+
+@app.route("/api/push/test", methods=["POST"])
+def push_test():
+    """Pošalji probnu notifikaciju (za testiranje da push radi bez čekanja promene stanja)."""
+    conn = get_connection()
+    sent = push.send_to_all(conn, {
+        "title": "Srećna biljka",
+        "body": "Probna notifikacija — push radi.",
+        "state": "happy",
+        "url": "/dashboard",
+    })
+    conn.close()
+    return jsonify({"status": "sent", "count": sent}), 200
 
 
 if __name__ == "__main__":

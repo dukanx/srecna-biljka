@@ -39,6 +39,17 @@ def init_db():
         );
     """)
 
+    # Web Push pretplate (jedan red = jedan browser koji je dao dozvolu)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id         SERIAL PRIMARY KEY,
+            endpoint   TEXT UNIQUE NOT NULL,
+            p256dh     TEXT NOT NULL,
+            auth       TEXT NOT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
     # Istorija stanja biljke — koristi se da znamo kad se stanje PROMENILO
     cur.execute("""
         CREATE TABLE IF NOT EXISTS plant_state_log (
