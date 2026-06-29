@@ -39,6 +39,16 @@ def init_db():
         );
     """)
 
+    # Istorija stanja biljke — koristi se da znamo kad se stanje PROMENILO
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS plant_state_log (
+            id          SERIAL PRIMARY KEY,
+            state       VARCHAR(20) NOT NULL,
+            reason      TEXT,
+            recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+    """)
+
     conn.commit()
     cur.close()
     conn.close()
