@@ -2,3 +2,5 @@ api/venv/
 api/.env
 __pycache__/
 *.pyc
+.vscode/
+sketch/secrets.h
