@@ -22,6 +22,15 @@ import time
 import urllib.error
 import urllib.request
 
+# Ako je python-dotenv dostupan, cita se api/.env kao i na serveru. Bez njega
+# skripta radi na cistoj standardnoj biblioteci, pa se moze pokrenuti i sa
+# masine bez venv-a. Promenljive iz komandne linije uvek imaju prednost.
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 API_BASE = os.getenv("API_BASE", "http://localhost:5000")
 
 # Pauza (sekunde) između stanja kad se prolazi kroz sva — da se na demou

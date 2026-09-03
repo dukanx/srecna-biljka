@@ -6,6 +6,7 @@
 #include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <SimpleDHT.h>
+#include "secrets.h"   // WIFI_SSID, WIFI_PASSWORD, API_BASE, API_KEY
 
 // Analogni senzori rade na 3.3V. Na 5V napajanju AO izlaz prelazi 3.3V i
 // oštećuje ADC ulaz. SOIL_PIN i LDR_PIN su na ADC1; ADC2 ne radi uz WiFi.
@@ -19,9 +20,6 @@
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 SimpleDHT11 dht11(DHT_PIN);
-
-#include "secrets.h"   // WIFI_SSID, WIFI_PASSWORD, API_BASE, API_KEY
-
 
 const unsigned long WIFI_TIMEOUT_MS = 20000;
 
