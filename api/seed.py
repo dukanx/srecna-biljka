@@ -52,6 +52,10 @@ def _request(method, path, body=None):
     req = urllib.request.Request(url, data=data, method=method)
     if data is not None:
         req.add_header("Content-Type", "application/json")
+    # Upisne rute traže API ključ kad je postavljen na serveru.
+    api_key = os.getenv("API_KEY")
+    if api_key:
+        req.add_header("X-API-Key", api_key)
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
             return json.loads(resp.read().decode())

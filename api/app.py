@@ -1,3 +1,4 @@
+import functools
 import os
 
 from flask import Flask, jsonify, request, send_from_directory
@@ -10,6 +11,20 @@ from plant import fetch_latest_readings, evaluate_state, STATE_LABEL
 app = Flask(__name__)
 
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
+# Ako API_KEY nije postavljen, zaštita je isključena i sve radi kao ranije.
+# Na javnom hostingu je obavezan.
+API_KEY = os.getenv("API_KEY")
+
+
+def require_api_key(fn):
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        if API_KEY and request.headers.get("X-API-Key") != API_KEY:
+            return jsonify({"error": "Neispravan ili nedostajuci API kljuc"}), 401
+        return fn(*args, **kwargs)
+    return wrapper
+
 
 
 @app.route("/api/devices", methods=["GET"])
@@ -29,6 +44,7 @@ def get_all_devices():
 
 
 @app.route("/api/devices", methods=["POST"])
+@require_api_key
 def create_device():
     data = request.get_json()
 
@@ -71,6 +87,7 @@ def get_device(device_id):
 
 
 @app.route("/api/devices/<int:device_id>", methods=["PUT"])
+@require_api_key
 def update_device(device_id):
     data = request.get_json()
 
@@ -109,6 +126,7 @@ def update_device(device_id):
 
 
 @app.route("/api/devices/<int:device_id>", methods=["DELETE"])
+@require_api_key
 def delete_device(device_id):
     conn = get_connection()
     cur = conn.cursor()
@@ -151,6 +169,7 @@ def get_readings():
 
 
 @app.route("/api/readings", methods=["POST"])
+@require_api_key
 def create_reading():
     data = request.get_json()
 
@@ -299,6 +318,7 @@ def push_unsubscribe():
 
 
 @app.route("/api/push/test", methods=["POST"])
+@require_api_key
 def push_test():
     """Pošalji probnu notifikaciju (za testiranje da push radi bez čekanja promene stanja)."""
     conn = get_connection()
