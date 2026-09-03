@@ -41,6 +41,24 @@ int deviceLight = -1;
 
 bool displayReady = false;
 
+enum Mood { MOOD_NONE, MOOD_HAPPY, MOOD_THIRSTY, MOOD_SLEEPY, MOOD_ANGRY };
+
+Mood currentMood   = MOOD_NONE;
+Mood lastDrawnMood = MOOD_NONE;
+bool isBlinking     = false;
+bool lastDrawnBlink = false;
+unsigned long blinkStart   = 0;
+unsigned long lastBlinkEnd = 0;
+
+const unsigned long READ_INTERVAL_MS  = 30000;
+const unsigned long WIFI_RETRY_MS     = 10000;
+const unsigned long BLINK_INTERVAL_MS = 4000;
+const unsigned long BLINK_DURATION_MS = 150;
+
+unsigned long lastReadTime = 0;
+unsigned long lastWifiTry  = 0;
+bool everRead = false;
+
 // Globalni da se TLS bafer ne alocira iznova pri svakom zahtevu.
 WiFiClient       plainClient;
 WiFiClientSecure secureClient;
@@ -74,13 +92,33 @@ void setup() {
   loadDeviceIds();
 }
 
+// Petlja se vrti stalno, a merenje se zakazuje preko millis(). Bez toga lice
+// ne bi moglo da trepce izmedju dva ocitavanja.
 void loop() {
-  ensureWifi();
+  unsigned long now = millis();
+
   if (WiFi.status() != WL_CONNECTED) {
-    showMessage("Nema WiFi mreze", "Pokusavam ponovo");
-    delay(10000);
+    if (now - lastWifiTry >= WIFI_RETRY_MS) {
+      lastWifiTry = now;
+      showMessage("Nema WiFi mreze", "Pokusavam ponovo");
+      lastDrawnMood = MOOD_NONE;
+      ensureWifi();
+    }
+    delay(20);
     return;
   }
+
+  if (!everRead || now - lastReadTime >= READ_INTERVAL_MS) {
+    everRead = true;
+    lastReadTime = now;
+    readAndSend();
+  }
+
+  updateFace(millis());
+  delay(20);
+}
+
+void readAndSend() {
   if (deviceSoil < 0 && deviceTemp < 0 && deviceLight < 0) {
     loadDeviceIds();
   }
@@ -106,8 +144,13 @@ void loop() {
   postReading(deviceLight, lux, "lux");
 
   String state = getPlantState();
-  showState(state);
-  delay(30000);
+  if (state == "offline") {
+    showMessage("Nema veze sa", "serverom");
+    currentMood   = MOOD_NONE;
+    lastDrawnMood = MOOD_NONE;
+  } else {
+    currentMood = moodFromState(state);
+  }
 }
 
 void ensureWifi() {
@@ -229,36 +272,108 @@ String getPlantState() {
   return state;
 }
 
-void showState(String state) {
-  if (!displayReady) return;
-  display.clearDisplay();
-  display.setTextColor(SSD1306_WHITE);
-  display.setTextSize(2);
-  display.setCursor(0, 0);
-  if (state == "happy") {
-    display.println(":)");
-    display.setTextSize(1);
-    display.println("Sve je OK!");
-  } else if (state == "thirsty") {
-    display.println(":(");
-    display.setTextSize(1);
-    display.println("Zedna sam!");
-    display.println("Zalij me!");
-  } else if (state == "angry") {
-    display.println(">:(");
-    display.setTextSize(1);
-    display.println("Prevruce!");
-  } else if (state == "sleepy") {
-    display.println("-_-");
-    display.setTextSize(1);
-    display.println("Premalo svetla");
-  } else {
-    display.println("...");
-    display.setTextSize(1);
-    display.println("Nema veze sa");
-    display.println("serverom");
+Mood moodFromState(const String &state) {
+  if (state == "happy")   return MOOD_HAPPY;
+  if (state == "thirsty") return MOOD_THIRSTY;
+  if (state == "sleepy")  return MOOD_SLEEPY;
+  if (state == "angry")   return MOOD_ANGRY;
+  return MOOD_NONE;
+}
+
+// openness: 0.05 skoro zatvoreno .. 1.0 siroko otvoreno
+void drawEye(int cx, int cy, int eyeRadius, float openness) {
+  int halfHeight = max(1, (int)(eyeRadius * openness));
+  int cornerRadius = min(eyeRadius, halfHeight);
+  display.fillRoundRect(cx - eyeRadius, cy - halfHeight,
+                        eyeRadius * 2, halfHeight * 2,
+                        cornerRadius, SSD1306_WHITE);
+}
+
+// innerUp podize kraj obrve blizi sredini lica (zabrinuto), inace ga spusta (ljuto).
+// isLeft govori koja je strana unutrasnja, da obrve budu ogledane.
+void drawEyebrow(int cx, int cy, int width, bool innerUp, bool isLeft) {
+  int outerY = innerUp ? cy + 4 : cy - 2;
+  int innerY = innerUp ? cy - 2 : cy + 4;
+  int leftY  = isLeft ? outerY : innerY;
+  int rightY = isLeft ? innerY : outerY;
+  display.drawLine(cx - width / 2, leftY, cx + width / 2, rightY, SSD1306_WHITE);
+}
+
+// curve > 0 osmeh, < 0 mrgud. Skala 3 drzi krajeve izmedju ociju i donje ivice;
+// sa vecom skalom osmeh ulazi u oci a mrgud ispada sa ekrana.
+void drawMouth(int cx, int cy, int halfWidth, float curve) {
+  int prevX = cx - halfWidth;
+  // Prva tacka mora da krene sa same krive. Ako se krene od cy, prvi potez
+  // je uspravna crta na levom kraju usta.
+  int prevY = cy - (int)(curve * 3);
+  for (int x = -halfWidth + 1; x <= halfWidth; x++) {
+    float t = (float)x / halfWidth;
+    int y = cy - (int)(curve * t * t * 3);
+    int screenX = cx + x;
+    display.drawLine(prevX, prevY, screenX, y, SSD1306_WHITE);
+    prevX = screenX;
+    prevY = y;
   }
+}
+
+void drawDrop(int cx, int cy) {
+  display.fillTriangle(cx, cy - 6, cx - 4, cy + 2, cx + 4, cy + 2, SSD1306_WHITE);
+  display.fillCircle(cx, cy + 3, 4, SSD1306_WHITE);
+}
+
+// Panel je dvobojan: gornjih 16 redova je zuto, ostalo plavo. Obrve su cele
+// u zutom pojasu, kap cela u plavom, da nijedan element ne preseca granicu.
+void drawFace(Mood mood, bool blinkClosed) {
+  const int eyeY = 24, eyeR = 12, leftX = 40, rightX = 88;
+
+  float openness  = 1.0;
+  float mouthCurve = 0.0;
+  bool brows = false, browsUp = false, drop = false;
+
+  switch (mood) {
+    case MOOD_HAPPY:   openness = 1.0;  mouthCurve =  3.0; break;
+    case MOOD_THIRSTY: openness = 0.7;  mouthCurve = -2.5; brows = true; browsUp = true;  drop = true; break;
+    case MOOD_SLEEPY:  openness = 0.25; mouthCurve =  0.5; break;
+    case MOOD_ANGRY:   openness = 0.6;  mouthCurve = -2.5; brows = true; browsUp = false; break;
+    default: return;
+  }
+
+  if (blinkClosed) openness = 0.08;
+
+  display.clearDisplay();
+  drawEye(leftX,  eyeY, eyeR, openness);
+  drawEye(rightX, eyeY, eyeR, openness);
+
+  if (brows && !blinkClosed) {
+    int browY = eyeY - eyeR - 6;
+    drawEyebrow(leftX,  browY, 16, browsUp, true);
+    drawEyebrow(rightX, browY, 16, browsUp, false);
+  }
+
+  drawMouth(64, 52, 20, mouthCurve);
+
+  if (drop && !blinkClosed) drawDrop(20, 40);
+
   display.display();
+}
+
+// Crta samo kad se nesto promeni, da se ekran ne osvezava dvadeset puta u sekundi.
+void updateFace(unsigned long now) {
+  if (!displayReady || currentMood == MOOD_NONE) return;
+
+  if (!isBlinking && now - lastBlinkEnd >= BLINK_INTERVAL_MS) {
+    isBlinking = true;
+    blinkStart = now;
+  } else if (isBlinking && now - blinkStart >= BLINK_DURATION_MS) {
+    isBlinking = false;
+    lastBlinkEnd = now;
+  }
+
+  if (currentMood != lastDrawnMood || isBlinking != lastDrawnBlink) {
+    drawFace(currentMood, isBlinking);
+    lastDrawnMood  = currentMood;
+    lastDrawnBlink = isBlinking;
+  }
 }
 
 void showMessage(const char* line1, const char* line2) {
