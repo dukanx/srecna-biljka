@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: srecna-biljka
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/plant/state
+    envVars:
+      # Sve se unosi u Render dashboardu - nista tajno ne ide u repozitorijum.
+      - key: DATABASE_URL      # connection string iz Neon-a
+        sync: false
+      - key: API_KEY           # isti string koji stoji u sketch.ino
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_CLAIM_EMAIL
+        sync: false

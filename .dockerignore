@@ -1,0 +1,8 @@
+api/venv/
+api/.env
+__pycache__/
+*.pyc
+.git/
+sketch/
+kalibracija/
+esp32/

@@ -6,6 +6,14 @@ from dotenv import load_dotenv
 load_dotenv()  # čita .env fajl i stavlja vrednosti u os.environ
 
 def get_connection():
+    # Hosting daje jedan DATABASE_URL umesto pojedinačnih promenljivih.
+    url = os.getenv("DATABASE_URL")
+    if url:
+        if "sslmode=" in url:
+            return psycopg2.connect(url)
+        # Postgres na cloudu po pravilu zahteva SSL; lokalno se gasi sa DB_SSLMODE=disable.
+        return psycopg2.connect(url, sslmode=os.getenv("DB_SSLMODE", "require"))
+
     return psycopg2.connect(
         host=os.getenv("DB_HOST"),
         port=os.getenv("DB_PORT"),
@@ -50,7 +58,7 @@ def init_db():
         );
     """)
 
-    # Istorija stanja biljke — koristi se da znamo kad se stanje PROMENILO
+    # Istorija stanja biljke, po njoj se prepoznaje promena stanja
     cur.execute("""
         CREATE TABLE IF NOT EXISTS plant_state_log (
             id          SERIAL PRIMARY KEY,
@@ -67,10 +75,15 @@ def init_db():
 
 
 if __name__ == "__main__":
+    import sys
+
     try:
         conn = get_connection()
         print("Konekcija uspešna!")
         conn.close()
         init_db()
     except Exception as e:
+        # Dockerfile pokrece "python db.py && gunicorn", pa izlaz != 0
+        # sprecava da se server digne sa neispravnom bazom.
         print(f"Greška: {e}")
+        sys.exit(1)
