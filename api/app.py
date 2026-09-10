@@ -6,7 +6,8 @@ import psycopg2.extras
 
 from db import get_connection, init_db  # db importuje dotenv -> .env učitan pre push modula
 import push
-from plant import fetch_latest_readings, evaluate_state, STATE_LABEL
+from plant import (fetch_latest_readings, fetch_active_profile, evaluate_state,
+                   STATE_LABEL)
 
 app = Flask(__name__)
 
@@ -211,7 +212,7 @@ def _check_state_change_and_notify(conn):
     if not readings:
         return
 
-    state, reason = evaluate_state(readings)
+    state, reason = evaluate_state(readings, fetch_active_profile(conn))
 
     cur = conn.cursor()
     cur.execute("SELECT state FROM plant_state_log ORDER BY recorded_at DESC LIMIT 1")
@@ -243,14 +244,16 @@ def _check_state_change_and_notify(conn):
 def get_plant_state():
     conn = get_connection()
     readings = fetch_latest_readings(conn)
+    profile = fetch_active_profile(conn)
     conn.close()
 
-    state, reason = evaluate_state(readings)
+    state, reason = evaluate_state(readings, profile)
 
     return jsonify({
         "state": state,
         "reason": reason,
-        "readings": readings
+        "readings": readings,
+        "profile": profile
     }), 200
 
 
@@ -285,6 +288,134 @@ def get_plant_history():
         })
 
     return jsonify(history), 200
+
+
+# ── Profili biljke ──────────────────────────────────────────────
+@app.route("/api/profiles", methods=["GET"])
+def get_profiles():
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM plant_profiles ORDER BY name")
+    profiles = cur.fetchall()
+    cur.close()
+    conn.close()
+    return jsonify({"profiles": profiles}), 200
+
+
+PROFILE_FIELDS = ("soil_thirsty", "soil_ideal_lo", "soil_ideal_hi",
+                  "light_min", "light_ideal", "temp_min", "temp_max")
+
+
+def _validate_profile(data):
+    """Vrati (vrednosti, greska).
+
+    Pragovi koji se ukrste napravili bi profil po kome biljka nikad nije
+    zadovoljna, ili po kome pumpa zaliva u pogresnom trenutku, pa se odbijaju
+    ovde umesto da se otkriju tek na uredjaju.
+    """
+    name = (data.get("name") or "").strip()
+    if not name:
+        return None, "Naziv profila je obavezan"
+    if len(name) > 60:
+        return None, "Naziv može imati najviše 60 znakova"
+
+    values = {}
+    for field in PROFILE_FIELDS:
+        if data.get(field) is None:
+            return None, f"Obavezno polje: {field}"
+        try:
+            values[field] = int(data[field])
+        except (TypeError, ValueError):
+            return None, f"Polje {field} mora biti ceo broj"
+
+    for field in ("soil_thirsty", "soil_ideal_lo", "soil_ideal_hi"):
+        if not 0 <= values[field] <= 100:
+            return None, "Vlažnost tla se izražava u procentima, od 0 do 100"
+
+    if values["soil_ideal_lo"] >= values["soil_ideal_hi"]:
+        return None, "Donja granica idealne vlažnosti mora biti manja od gornje"
+    if values["soil_thirsty"] > values["soil_ideal_lo"]:
+        return None, "Prag žeđi ne može biti iznad idealnog opsega vlažnosti"
+    if values["light_min"] < 0:
+        return None, "Minimalna svetlost ne može biti negativna"
+    if values["light_ideal"] <= values["light_min"]:
+        return None, "Idealna svetlost mora biti veća od minimalne"
+    if values["temp_min"] >= values["temp_max"]:
+        return None, "Minimalna temperatura mora biti manja od maksimalne"
+
+    values["name"] = name
+    return values, None
+
+
+@app.route("/api/profiles", methods=["POST"])
+@require_api_key
+def create_profile():
+    """Napravi profil od izmerenih vrednosti. Uz activate=true odmah postaje aktivan."""
+    data = request.get_json() or {}
+    values, error = _validate_profile(data)
+    if error:
+        return jsonify({"error": error}), 400
+
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+    # Naziv je UNIQUE u bazi, ali poređenje bez obzira na velika slova daje
+    # jasnu poruku umesto greške iz drajvera.
+    cur.execute("SELECT name FROM plant_profiles WHERE lower(name) = lower(%s)", (values["name"],))
+    postojeci = cur.fetchone()
+    if postojeci is not None:
+        cur.close()
+        conn.close()
+        return jsonify({"error": f"Profil pod nazivom \"{postojeci['name']}\" već postoji"}), 409
+
+    cur.execute(
+        """
+        INSERT INTO plant_profiles
+            (name, soil_thirsty, soil_ideal_lo, soil_ideal_hi,
+             light_min, light_ideal, temp_min, temp_max, is_active)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, FALSE)
+        RETURNING *
+        """,
+        (values["name"], values["soil_thirsty"], values["soil_ideal_lo"],
+         values["soil_ideal_hi"], values["light_min"], values["light_ideal"],
+         values["temp_min"], values["temp_max"])
+    )
+    profile = cur.fetchone()
+
+    if data.get("activate"):
+        cur.execute("UPDATE plant_profiles SET is_active = (id = %s)", (profile["id"],))
+        profile["is_active"] = True
+
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify(profile), 201
+
+
+@app.route("/api/profiles/active", methods=["PUT"])
+@require_api_key
+def set_active_profile():
+    """Menja pragove po kojima se procenjuje stanje, pa i kad pumpa zaliva.
+    Zato traži ključ, iako je dashboard inače javan za čitanje."""
+    data = request.get_json() or {}
+    if "id" not in data:
+        return jsonify({"error": "Obavezno polje: id"}), 400
+
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT id FROM plant_profiles WHERE id = %s", (data["id"],))
+    if cur.fetchone() is None:
+        cur.close()
+        conn.close()
+        return jsonify({"error": f"Profil sa ID={data['id']} ne postoji"}), 404
+
+    cur.execute("UPDATE plant_profiles SET is_active = (id = %s)", (data["id"],))
+    conn.commit()
+    cur.execute("SELECT * FROM plant_profiles WHERE id = %s", (data["id"],))
+    active = cur.fetchone()
+    cur.close()
+    conn.close()
+    return jsonify(active), 200
 
 
 # ── Web Push (VAPID) ────────────────────────────────────────────

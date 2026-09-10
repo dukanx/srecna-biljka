@@ -1,4 +1,3 @@
-
 import psycopg2.extras
 
 
@@ -7,6 +6,18 @@ STATE_LABEL = {
     "thirsty": "Žedna",
     "sleepy": "Pospana",
     "angry": "Ljuta",
+}
+
+# Koristi se dok u bazi nema nijednog profila.
+DEFAULT_PROFILE = {
+    "name": "Opšte sobno bilje",
+    "soil_thirsty": 30,
+    "soil_ideal_lo": 40,
+    "soil_ideal_hi": 70,
+    "light_min": 500,
+    "light_ideal": 1000,
+    "temp_min": 18,
+    "temp_max": 30,
 }
 
 
@@ -29,10 +40,21 @@ def fetch_latest_readings(conn):
     return {row["type"]: dict(row) for row in rows}
 
 
-def evaluate_state(readings):
+def fetch_active_profile(conn):
+    """Aktivan profil biljke; DEFAULT_PROFILE ako tabela još nije popunjena."""
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT * FROM plant_profiles WHERE is_active = TRUE LIMIT 1")
+    row = cur.fetchone()
+    cur.close()
+    return dict(row) if row else dict(DEFAULT_PROFILE)
+
+
+def evaluate_state(readings, profile=None):
     """
-    sleepy < angry (temp/CO2) < thirsty
+    Osnovno stanje je happy. Pravila se primenjuju redom, pa poslednje koje se
+    poklopi pobeđuje: žeđ nadjačava sve.
     """
+    p = profile or DEFAULT_PROFILE
     state = "happy"
     reason = "Sve je u redu, biljka je zadovoljna."
 
@@ -41,11 +63,11 @@ def evaluate_state(readings):
     co2 = readings.get("co2")
     light = readings.get("light")
 
-    if light and light["value"] < 500:
+    if light and light["value"] < p["light_min"]:
         state = "sleepy"
         reason = f"Premalo svetlosti ({light['value']} lux). Premesti biljku na svetlije mesto."
 
-    if temp and temp["value"] > 30:
+    if temp and temp["value"] > p["temp_max"]:
         state = "angry"
         reason = f"Temperatura previsoka ({temp['value']}°C). Pomeri biljku dalje od izvora toplote."
 
@@ -53,7 +75,7 @@ def evaluate_state(readings):
         state = "angry"
         reason = f"Nivo CO2 previsok ({co2['value']} ppm). Provetri prostoriju."
 
-    if soil and soil["value"] < 30:
+    if soil and soil["value"] < p["soil_thirsty"]:
         state = "thirsty"
         reason = f"Vlažnost tla preniska ({soil['value']}%). Biljci je potrebna voda."
 

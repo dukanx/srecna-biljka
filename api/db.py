@@ -68,6 +68,37 @@ def init_db():
         );
     """)
 
+    # Pragovi zavise od biljke: anturijum i kaktus nemaju iste potrebe.
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS plant_profiles (
+            id            SERIAL PRIMARY KEY,
+            name          VARCHAR(60) UNIQUE NOT NULL,
+            soil_thirsty  INTEGER NOT NULL,
+            soil_ideal_lo INTEGER NOT NULL,
+            soil_ideal_hi INTEGER NOT NULL,
+            light_min     INTEGER NOT NULL,
+            light_ideal   INTEGER NOT NULL,
+            temp_min      INTEGER NOT NULL,
+            temp_max      INTEGER NOT NULL,
+            is_active     BOOLEAN NOT NULL DEFAULT FALSE
+        );
+    """)
+
+    cur.execute("SELECT COUNT(*) FROM plant_profiles")
+    if cur.fetchone()[0] == 0:
+        cur.executemany(
+            """INSERT INTO plant_profiles
+               (name, soil_thirsty, soil_ideal_lo, soil_ideal_hi,
+                light_min, light_ideal, temp_min, temp_max, is_active)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            [
+                ("Anturijum (flamingo lily)", 35, 40, 70,  400, 1200, 18, 28, True),
+                ("Opšte sobno bilje",         30, 40, 70,  500, 1000, 18, 30, False),
+                ("Kaktus i sukulente",        15, 15, 40, 1500, 5000, 10, 35, False),
+                ("Paprat i vlagoljubive",     45, 55, 85,  300,  800, 16, 26, False),
+            ]
+        )
+
     conn.commit()
     cur.close()
     conn.close()
