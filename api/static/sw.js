@@ -1,6 +1,6 @@
 /* Service worker — Srećna biljka PWA */
 
-const CACHE = "srecna-biljka-v1";
+const CACHE = "srecna-biljka-v8";
 
 // App shell koji keširamo da dashboard radi i offline
 const APP_SHELL = [
@@ -8,7 +8,6 @@ const APP_SHELL = [
   "/manifest.json",
   "/static/style.css",
   "/static/app.js",
-  "/static/vendor/chart.umd.min.js",
   "/static/icons/srecna-biljka-192.png",
   "/static/icons/srecna-biljka-512.png",
 ];

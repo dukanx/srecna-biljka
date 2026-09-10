@@ -1,248 +1,555 @@
-/* Srećna biljka — minimal/clean, auto light/dark */
+/* Srećna biljka — dashboard
+   Paleta i raspored preneti iz Claude Design predloška; inline stilovi su
+   izvučeni u klase. Font je sistemski, bez spoljnog fonta, da PWA radi i bez
+   mreže. Boje stakla OLED-a su svojstvo hardvera i iste su u obe teme. */
 
 :root {
-  --bg: #f6f8f6;
-  --surface: #ffffff;
-  --surface-2: #eef2ee;
-  --text: #16201a;
-  --muted: #6a776d;
-  --border: #e4eae4;
+  --bg:        #EDF1E8;
+  --card:      rgba(255, 255, 255, .88);
+  --leaf:      #2C7A5B;
+  --leafSoft:  rgba(44, 122, 91, .10);
+  --glass:     rgba(244, 248, 241, .76);
+  --grid:      rgba(28, 60, 45, .08);
+  --sep:       rgba(28, 60, 45, .13);
+  --sep2:      rgba(28, 60, 45, .09);
+  --txt:       #10231A;
+  --txt2:      rgba(30, 58, 46, .66);
+  --txt3:      rgba(30, 58, 46, .45);
+  --fill:      rgba(44, 122, 91, .10);
 
-  --accent: #16a34a;
-  --accent-soft: #d7f0df;
+  --c-good:    #2C7A5B;
+  --c-warn:    #9E6B12;
+  --c-bad:     #B3402B;
 
-  --good: #16a34a;
-  --warn: #f59e0b;
-  --bad: #ef4444;
+  --c-happy:   #2C7A5B;
+  --c-thirsty: #2F6FB5;
+  --c-sleepy:  #5B54A8;
+  --c-angry:   #B3402B;
+  --c-night:   #5C6470;
 
-  --radius: 16px;
-  --shadow: 0 1px 2px rgba(16, 32, 26, 0.04), 0 6px 20px rgba(16, 32, 26, 0.06);
+  --st:   var(--c-happy);
+  --tone: var(--c-good);
+
+  --oled-bg:     #05070A;
+  --oled-blue:   #57D3EE;
+  --oled-yellow: #F5CE55;
+
+  color-scheme: light;
 }
 
+/* Tri stanja: bez atributa vazi sistemska tema, sa atributom vazi izbor.
+   Zato je tamna definisana dvaput, sa razlicitim uslovom. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0d1117;
-    --surface: #161b22;
-    --surface-2: #1d242d;
-    --text: #e6edf3;
-    --muted: #8b97a4;
-    --border: #283039;
+  :root:not([data-theme="light"]) {
+    --bg:        #080B09;
+    --card:      rgba(28, 33, 30, .78);
+    --leaf:      #66C39A;
+    --leafSoft:  rgba(102, 195, 154, .13);
+    --glass:     rgba(14, 18, 15, .72);
+    --grid:      rgba(255, 255, 255, .07);
+    --sep:       rgba(255, 255, 255, .10);
+    --sep2:      rgba(255, 255, 255, .06);
+    --txt:       #F2F2F4;
+    --txt2:      rgba(235, 235, 245, .60);
+    --txt3:      rgba(235, 235, 245, .34);
+    --fill:      rgba(120, 120, 128, .24);
 
-    --accent: #2ea043;
-    --accent-soft: #11351f;
+    --c-good:    #66C39A;
+    --c-warn:    #E0B349;
+    --c-bad:     #F0785A;
 
-    --good: #3fb950;
-    --warn: #d29922;
-    --bad: #f85149;
+    --c-happy:   #66C39A;
+    --c-thirsty: #6BA6F0;
+    --c-sleepy:  #A79BF0;
+    --c-angry:   #F0785A;
+    --c-night:   #98A2B0;
 
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+    color-scheme: dark;
   }
 }
 
+:root[data-theme="dark"] {
+  --bg:    #080B09;
+  --card:    rgba(28, 33, 30, .78);
+  --leaf:    #66C39A;
+  --leafSoft:  rgba(102, 195, 154, .13);
+  --glass:   rgba(14, 18, 15, .72);
+  --grid:    rgba(255, 255, 255, .07);
+  --sep:     rgba(255, 255, 255, .10);
+  --sep2:    rgba(255, 255, 255, .06);
+  --txt:     #F2F2F4;
+  --txt2:    rgba(235, 235, 245, .60);
+  --txt3:    rgba(235, 235, 245, .34);
+  --fill:    rgba(120, 120, 128, .24);
+
+  --c-good:  #66C39A;
+  --c-warn:  #E0B349;
+  --c-bad:   #F0785A;
+
+  --c-happy:   #66C39A;
+  --c-thirsty: #6BA6F0;
+  --c-sleepy:  #A79BF0;
+  --c-angry:   #F0785A;
+  --c-night:   #98A2B0;
+
+  color-scheme: dark;
+}
+
+[data-state="happy"]   { --st: var(--c-happy); }
+[data-state="thirsty"] { --st: var(--c-thirsty); }
+[data-state="sleepy"]  { --st: var(--c-sleepy); }
+[data-state="angry"]   { --st: var(--c-angry); }
+[data-state="night"]   { --st: var(--c-night); }
+
+[data-level="good"] { --tone: var(--c-good); }
+[data-level="warn"] { --tone: var(--c-warn); }
+[data-level="bad"]  { --tone: var(--c-bad); }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-body {
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100dvh;
-  padding-bottom: 3rem;
+html, body {
+  background:
+    radial-gradient(110% 45% at 88% -8%, var(--leafSoft), transparent 72%),
+    radial-gradient(90% 40% at 5% 102%, var(--leafSoft), transparent 70%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--txt);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 100vh;
+}
+
+.shell {
+  max-width: 440px;
+  width: 100%;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 svg { display: block; }
 
-/* ── Topbar ─────────────────────────────────────────── */
+.card {
+  background: var(--card);
+  border-radius: 22px;
+  box-shadow: inset 0 0 0 .5px var(--sep);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  margin: 0 16px;
+}
+
+/* ── Zaglavlje ──────────────────────────────────────── */
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 26px 20px 16px;
+}
+.topbar h1 {
+  font-size: 33px;
+  line-height: 1.05;
+  font-weight: 700;
+  letter-spacing: -.7px;
+}
+
+.actions { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+
+.bell {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--txt2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.bell:active { transform: scale(.92); }
+.bell:focus-visible { outline: 2px solid var(--st); outline-offset: 2px; }
+.bell svg { width: 19px; height: 19px; }
+.bell.enabled { background: var(--st); color: var(--card); }
+
+/* ── Ekran uređaja ──────────────────────────────────── */
+.device {
+  position: relative;
+  margin-top: 6px;
+  border-radius: 26px;
+  padding: 18px 18px 19px;
+  background: linear-gradient(180deg, var(--leafSoft), transparent 55%), var(--card);
+  overflow: hidden;
+}
+.leaf-deco {
+  position: absolute;
+  right: -40px;
+  bottom: -52px;
+  opacity: .2;
+  pointer-events: none;
+}
+
+.device-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.panel {
+  position: relative;
+  flex: none;
+  background: #080A0E;
+  padding: 7px;
+  border-radius: 15px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .1),
+    0 0 0 1px rgba(0, 0, 0, .35),
+    0 0 0 6px var(--leafSoft),
+    0 6px 22px -8px rgba(94, 200, 245, .5);
+}
+
+#face {
+  display: block;
+  width: 154px;
+  height: 77px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: var(--oled-bg);
+  border-radius: 6px;
+}
+
+/* Skenirajuce linije i odsjaj stakla, da panel deluje kao pravi modul */
+.panel-scan, .panel-gloss {
+  position: absolute;
+  inset: 7px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+.panel-scan {
+  background: repeating-linear-gradient(180deg, rgba(255,255,255,.05) 0 1px, transparent 1px 3px);
+  mix-blend-mode: screen;
+}
+.panel-gloss { background: linear-gradient(150deg, rgba(255,255,255,.14), transparent 42%); }
+
+/* Zauzima sav prostor desno od panela, pa naziv stanja stoji po sredini
+   te površine umesto priljubljen uz ekran. */
+.device-meta { flex: 1; min-width: 0; text-align: center; }
+
+.state-label { font-size: 25px; font-weight: 650; letter-spacing: -.3px; color: var(--st); }
+
+.hair { height: 1px; background: var(--sep2); margin: 14px 0 12px; }
+.state-reason { font-size: 14.5px; line-height: 1.42; color: var(--txt2); text-wrap: pretty; }
+
+/* ── Red sa profilom ────────────────────────────────── */
+.row-card {
+  margin-top: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.85rem 1.1rem;
-  background: color-mix(in srgb, var(--bg) 80%, transparent);
-  backdrop-filter: saturate(1.4) blur(10px);
-  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  padding: 0 14px 0 18px;
+  min-height: 52px;
 }
-.brand { display: flex; align-items: center; gap: 0.5rem; font-weight: 650; font-size: 1.05rem; }
-.brand-icon { color: var(--accent); display: inline-flex; }
-.brand-icon svg { width: 22px; height: 22px; }
+.row-label { display: flex; align-items: center; gap: 9px; font-size: 16px; }
 
-.icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--muted);
+.select-wrap { position: relative; display: flex; align-items: center; }
+.select-wrap select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-size: 16px;
+  color: var(--txt2);
+  padding: 12px 20px 12px 0;
+  text-align: right;
   cursor: pointer;
-  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  max-width: 230px;
 }
-.icon-btn svg { width: 20px; height: 20px; }
-.icon-btn:hover { color: var(--text); }
-.icon-btn.enabled { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.select-wrap svg { position: absolute; right: 0; pointer-events: none; }
+.select-wrap select:focus-visible { outline: 2px solid var(--st); outline-offset: 2px; border-radius: 6px; }
 
-/* ── Layout ─────────────────────────────────────────── */
-main {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 1.25rem 1.1rem;
+.select-wrap.pill select {
+  background: var(--fill);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--txt);
+  padding: 5px 24px 5px 11px;
+  text-align: left;
+}
+.select-wrap.pill svg { right: 9px; }
+
+/* ── Naslovi sekcija ────────────────────────────────── */
+.sec-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin: 30px 32px 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 32px 8px;
+}
+.sec-head .sec-title { margin: 30px 0 0; }
+
+.list { overflow: hidden; }
+
+/* ── Očitavanja ─────────────────────────────────────── */
+.reading {
+  padding: 14px 16px 15px;
+  box-shadow: inset 0 -1px 0 var(--sep2);
+}
+.reading:last-child { box-shadow: none; }
+
+.reading-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.reading-name { display: flex; align-items: center; gap: 7px; font-size: 15.5px; }
+.reading-name .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--tone); }
+
+.reading-value { font-size: 20px; font-weight: 600; letter-spacing: -.2px; }
+.reading-value .unit { font-size: 13px; font-weight: 500; color: var(--txt2); margin-left: 3px; }
+
+.gauge { position: relative; height: 9px; margin: 12px 0 9px; }
+.gauge-track {
+  position: absolute; top: 3px; left: 0; right: 0;
+  height: 3px; border-radius: 2px; background: var(--fill);
+}
+.gauge-band {
+  position: absolute; top: 3px;
+  height: 3px; border-radius: 2px; background: var(--tone); opacity: .4;
+}
+.gauge-mark {
+  position: absolute; top: 0;
+  width: 2px; height: 9px; border-radius: 1px; background: var(--tone);
+  transition: left .45s;
+}
+
+.reading-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12.5px;
+  color: var(--txt2);
+}
+
+/* ── Zalivanje ──────────────────────────────────────── */
+.pump-last { padding: 15px 16px 16px; }
+.pump-last .big { font-size: 29px; font-weight: 650; letter-spacing: -.6px; }
+.pump-last .note { font-size: 13.5px; color: var(--txt2); margin-top: 2px; }
+
+.pump-log { list-style: none; }
+.pump-log li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 16px;
+  font-size: 14.5px;
+  box-shadow: inset 0 1px 0 var(--sep2);
+}
+.pump-log .when { color: var(--txt2); }
+
+/* ── Grafikoni ──────────────────────────────────────── */
+.chart {
+  padding: 16px 18px 14px;
+  box-shadow: inset 0 -1px 0 var(--sep2);
+}
+.chart:last-child { box-shadow: none; }
+
+.chart-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 2px;
+}
+.chart-name { display: flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 550; }
+.chart-name .dot { width: 5px; height: 5px; border-radius: 999px; background: var(--tone); }
+.chart-now { font-size: 19px; font-weight: 600; letter-spacing: -.2px; }
+.chart-now .unit { font-size: 12px; font-weight: 500; color: var(--txt2); margin-left: 3px; }
+
+.chart-stats {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--txt2);
+  margin-bottom: 10px;
+}
+
+.chart-body { display: flex; gap: 8px; }
+.chart-axis {
+  flex: none;
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
+  justify-content: space-between;
+  height: 132px;
+  font-size: 11px;
+  color: var(--txt2);
+  text-align: right;
+  min-width: 26px;
+  padding: 1px 0;
 }
-.section-title { font-size: 0.8rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.8rem; }
+.chart-plot { flex: 1; height: 132px; overflow: visible; }
 
-/* ── Stanje (ilustrovana biljka) ────────────────────── */
-.state-card {
+.chart-xlabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--txt2);
+  margin: 7px 0 0 34px;
+}
+
+.empty { padding: 18px 16px; font-size: 14px; color: var(--txt2); }
+
+/* ── Traka stanja ───────────────────────────────────── */
+.tail { height: 26px; }
+
+.statusbar {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
   display: flex;
   align-items: center;
-  gap: 1.25rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.4rem 1.5rem;
-  box-shadow: var(--shadow);
+  justify-content: center;
+  gap: 7px;
+  padding: 11px 16px calc(11px + env(safe-area-inset-bottom));
+  background: var(--glass);
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: inset 0 1px 0 var(--sep);
+  font-size: 12.5px;
+  color: var(--txt2);
 }
-.plant-wrap { flex: 0 0 110px; }
-.plant { width: 110px; height: 118px; }
-
-/* boje stanja koje koristi i glow i badge */
-.state-card[data-state="happy"]   { --state: var(--good); }
-.state-card[data-state="thirsty"] { --state: #2f9ee0; }
-.state-card[data-state="sleepy"]  { --state: #8b7bd8; }
-.state-card[data-state="angry"]   { --state: var(--bad); }
-
-.plant-glow { fill: var(--state); opacity: 0.12; transition: fill 0.5s; }
-.pot-body { fill: #b5764e; }
-.pot-rim { fill: #c98a5f; }
-.pot-soil { fill: #5a3c28; }
-.stem { fill: #4f8f54; transition: fill 0.5s; }
-
-.leaf { fill: var(--leaf, #2faa50); transition: fill 0.5s; }
-.leaves {
-  transform-box: view-box;
-  transform-origin: 70px 96px;
-  transition: transform 0.6s cubic-bezier(.34,1.2,.64,1);
+.status-dot {
+  width: 6px; height: 6px; border-radius: 999px;
+  background: var(--txt3);
+  box-shadow: 0 0 0 4px var(--leafSoft);
+  transition: background .3s;
 }
+.status-dot.ok  { background: var(--c-good); }
+.status-dot.err { background: var(--c-bad); }
 
-/* posture + boja po stanju */
-.state-card[data-state="happy"]   { --leaf: #2faa50; }
-.state-card[data-state="happy"]   .leaves { transform: scaleY(1.03); }
+/* ── Novi profil ────────────────────────────────────── */
+.row-end { display: flex; align-items: center; gap: 4px; }
 
-.state-card[data-state="thirsty"] { --leaf: #93c79b; }       /* bledo, uvelo */
-.state-card[data-state="thirsty"] .leaves { transform: translateY(6px) scaleY(0.86) rotate(-2deg); }
-
-.state-card[data-state="sleepy"]  { --leaf: #7fae93; }       /* prigušeno */
-.state-card[data-state="sleepy"]  .leaves { transform: translateY(3px) scaleY(0.94); }
-
-.state-card[data-state="angry"]   { --leaf: #d98a3d; }       /* ka crveno/narandžastoj */
-.state-card[data-state="angry"]   .leaves { transform: scaleY(1.05) rotate(1deg); }
-
-.state-text { flex: 1; }
-.state-badge {
-  display: inline-block;
-  font-size: 0.78rem;
-  font-weight: 650;
-  padding: 0.25rem 0.6rem;
+.icon-btn {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border: none;
   border-radius: 999px;
-  color: var(--state);
-  background: color-mix(in srgb, var(--state) 14%, transparent);
-}
-.state-reason { color: var(--muted); margin-top: 0.6rem; font-size: 0.95rem; line-height: 1.45; }
-
-/* ── Očitavanja + mini-bar ──────────────────────────── */
-.readings-grid {
+  background: var(--fill);
+  color: var(--txt2);
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 0.85rem;
+  place-items: center;
+  cursor: pointer;
+  transition: transform .15s;
 }
-.reading-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 0.95rem 1rem 1.1rem;
-  box-shadow: var(--shadow);
-}
-.reading-top { display: flex; align-items: center; gap: 0.45rem; color: var(--muted); }
-.reading-top svg { width: 17px; height: 17px; }
-.reading-name { font-size: 0.82rem; font-weight: 550; }
-.reading-value { font-size: 1.7rem; font-weight: 700; margin-top: 0.35rem; line-height: 1; }
-.reading-value .unit { font-size: 0.85rem; font-weight: 500; color: var(--muted); margin-left: 0.15rem; }
-.reading-value[data-level="good"] { color: var(--good); }
-.reading-value[data-level="warn"] { color: var(--warn); }
-.reading-value[data-level="bad"]  { color: var(--bad); }
+.icon-btn:active { transform: scale(.9); }
+.icon-btn:focus-visible { outline: 2px solid var(--st); outline-offset: 2px; }
 
-.refbar { margin-top: 0.7rem; }
-.refbar-track {
-  position: relative;
+/* Na telefonu izlazi odozdo kao iOS sheet, na širem ekranu stoji po sredini. */
+.sheet {
+  width: min(440px, 100%);
+  max-width: 100%;
+  max-height: 92dvh;
+  margin: auto auto 0;
+  padding: 0;
+  border: none;
+  border-radius: 26px 26px 0 0;
+  background: var(--bg);
+  color: var(--txt);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.sheet::backdrop { background: rgba(0, 0, 0, .42); }
+.sheet[open] { animation: sheet-in .26s cubic-bezier(.32, .72, 0, 1); }
+@keyframes sheet-in { from { transform: translateY(16px); opacity: 0; } }
+
+@media (min-width: 520px) {
+  .sheet { margin: auto; border-radius: 24px; }
+}
+
+.sheet form {
   display: flex;
-  height: 7px;
-  border-radius: 999px;
-  overflow: hidden;
-  background: var(--surface-2);
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 20px calc(22px + env(safe-area-inset-bottom));
 }
-.refbar-zone { height: 100%; }
-.refbar-zone.good { background: color-mix(in srgb, var(--good) 55%, transparent); }
-.refbar-zone.warn { background: color-mix(in srgb, var(--warn) 55%, transparent); }
-.refbar-zone.bad  { background: color-mix(in srgb, var(--bad) 55%, transparent); }
-.refbar-marker {
-  position: absolute;
-  top: 50%;
-  width: 3px;
-  height: 14px;
-  border-radius: 2px;
-  background: var(--text);
-  border: 1.5px solid var(--surface);
-  transform: translate(-50%, -50%);
-  transition: left 0.5s;
-}
-.refbar-ideal { margin-top: 0.4rem; font-size: 0.72rem; color: var(--muted); }
-.reading-time { margin-top: 0.5rem; font-size: 0.68rem; color: var(--muted); }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; }
+.sheet-head h2 { font-size: 20px; font-weight: 650; letter-spacing: -.3px; }
+.sheet-note { font-size: 13px; line-height: 1.45; color: var(--txt2); text-wrap: pretty; }
+.sheet-err { font-size: 13.5px; line-height: 1.4; color: var(--c-bad); }
 
-/* ── Istorija / grafici ─────────────────────────────── */
-.history-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
-.history-head .section-title { margin-bottom: 0; }
-#hours-select {
-  padding: 0.4rem 0.65rem;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 0.85rem;
+.fld-group { display: flex; flex-direction: column; gap: 8px; }
+.fld-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--txt3);
 }
-.charts { display: flex; flex-direction: column; gap: 0.9rem; }
-.chart-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+.fld-unit { font-weight: 500; letter-spacing: 0; text-transform: none; }
+
+.fld-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fld-grid.three { grid-template-columns: repeat(3, 1fr); }
+
+.fld { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.fld-name { font-size: 12px; color: var(--txt3); }
+.fld input {
+  width: 100%;
+  font: inherit;
+  font-size: 16px; /* ispod 16px iOS zumira stranicu pri fokusu */
+  color: var(--txt);
+  background: var(--card);
+  border: none;
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 1px var(--sep);
+  padding: 10px 12px;
+}
+.fld input::placeholder { color: var(--txt3); }
+.fld input:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--st); }
+.fld-hint { font-size: 12px; line-height: 1.4; color: var(--txt3); }
+
+.fld-check { display: flex; align-items: center; gap: 10px; font-size: 15px; }
+.fld-check input { width: 20px; height: 20px; accent-color: var(--leaf); }
+
+.btn-primary {
+  border: none;
   border-radius: 14px;
-  padding: 0.9rem 1rem;
-  box-shadow: var(--shadow);
+  padding: 14px;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  background: var(--leaf);
+  color: var(--bg);
+  cursor: pointer;
+  transition: transform .15s, opacity .15s;
 }
-.chart-card h3 {
-  display: flex; align-items: center; gap: 0.4rem;
-  font-size: 0.82rem; color: var(--muted); font-weight: 600; margin-bottom: 0.5rem;
-}
-.chart-card h3 svg { width: 16px; height: 16px; }
-.chart-card canvas { width: 100% !important; height: 170px !important; }
+.btn-primary:active { transform: scale(.98); }
+.btn-primary:disabled { opacity: .5; cursor: default; }
+.btn-primary:focus-visible { outline: 2px solid var(--st); outline-offset: 2px; }
 
-.empty { color: var(--muted); font-style: italic; padding: 0.4rem 0; }
-
-/* ── Statusbar ──────────────────────────────────────── */
-.statusbar {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  display: flex; align-items: center; justify-content: center; gap: 0.45rem;
-  font-size: 0.74rem; color: var(--muted);
-  background: color-mix(in srgb, var(--bg) 85%, transparent);
-  backdrop-filter: blur(8px);
-  border-top: 1px solid var(--border);
-  padding: 0.45rem;
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
 }
-.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background 0.3s; }
-.status-dot.ok { background: var(--good); }
-.status-dot.err { background: var(--bad); }

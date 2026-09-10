@@ -3,75 +3,214 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#16a34a" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0d1117" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#EDF1E8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#080B09" media="(prefers-color-scheme: dark)">
   <title>Srećna biljka</title>
   <link rel="manifest" href="/manifest.json">
   <link rel="icon" href="/static/icons/srecna-biljka-192.png">
   <link rel="apple-touch-icon" href="/static/icons/srecna-biljka-192.png">
   <link rel="stylesheet" href="/static/style.css">
+  <script>
+    // Pre prvog iscrtavanja, da izabrana tema ne trepne u sistemsku.
+    try {
+      var t = localStorage.getItem("theme");
+      if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+  </script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-icon" data-icon="leaf"></span>
-      <span>Srećna biljka</span>
-    </div>
-    <button id="notif-btn" class="icon-btn" type="button" aria-label="Notifikacije"></button>
-  </header>
+  <div class="shell">
 
-  <main>
-    <!-- Trenutno stanje: ilustrovana biljka -->
-    <section class="state-card" id="state-card" data-state="happy">
-      <div class="plant-wrap">
-        <svg class="plant" viewBox="0 0 140 150" role="img" aria-label="Stanje biljke">
-          <circle class="plant-glow" cx="70" cy="74" r="50" />
-          <!-- listovi (boja + posturu menja CSS po stanju) -->
-          <g class="leaves">
-            <path class="leaf" d="M70,66 Q56,44 70,20 Q84,44 70,66 Z" />
-            <path class="leaf" d="M68,72 Q43,67 36,40 Q61,50 68,72 Z" />
-            <path class="leaf" d="M72,72 Q97,67 104,40 Q79,50 72,72 Z" />
-            <path class="stem" d="M68.5,96 L68.5,64 Q70,60 71.5,64 L71.5,96 Z" />
-          </g>
-          <!-- saksija -->
-          <ellipse class="pot-soil" cx="70" cy="95" rx="31" ry="5" />
-          <path class="pot-rim" d="M34,92 H106 L101,104 H39 Z" />
-          <path class="pot-body" d="M41,104 H99 L92,132 H48 Z" />
+    <header class="topbar">
+      <h1>Srećna biljka</h1>
+      <div class="actions">
+        <button id="theme-btn" class="bell" type="button" aria-label="Promeni temu"></button>
+        <button id="notif-btn" class="bell" type="button" aria-label="Notifikacije"></button>
+      </div>
+    </header>
+
+    <!-- Ekran uređaja: isto lice koje stoji na OLED-u -->
+    <section class="card device" id="state-card" data-state="happy">
+      <svg class="leaf-deco" width="190" height="190" viewBox="0 0 100 100" fill="none"
+           stroke="var(--leaf)" stroke-width="1.1" stroke-linecap="round" aria-hidden="true">
+        <path d="M50 100C50 62 58 34 92 14"></path>
+        <path d="M50 76c-16-7-27-2-33 7 11 9 25 7 33-7Z" fill="var(--leaf)" fill-opacity=".13"></path>
+        <path d="M56 56c-5-16 2-27 13-31 4 14-2 27-13 31Z" fill="var(--leaf)" fill-opacity=".13"></path>
+        <path d="M62 36c11-7 22-5 29 4-11 9-23 7-29-4Z" fill="var(--leaf)" fill-opacity=".13"></path>
+        <path d="M46 90c-13-4-21 0-25 7 9 6 20 4 25-7Z" fill="var(--leaf)" fill-opacity=".13"></path>
+      </svg>
+
+      <div class="device-row">
+        <div class="panel">
+          <canvas id="face" width="128" height="64" role="img" aria-label="Stanje biljke"></canvas>
+          <div class="panel-scan" aria-hidden="true"></div>
+          <div class="panel-gloss" aria-hidden="true"></div>
+        </div>
+
+        <div class="device-meta">
+          <div class="state-label" id="state-label">Učitavanje</div>
+        </div>
+      </div>
+
+      <div class="hair"></div>
+      <p class="state-reason" id="state-reason">Povezivanje sa biljkom…</p>
+    </section>
+
+    <!-- Profil biljke -->
+    <section class="card row-card" id="profile-row" hidden>
+      <span class="row-label">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--leaf)"
+             stroke-width="1.7" stroke-linecap="round" aria-hidden="true">
+          <path d="M12 21V11"></path>
+          <path d="M12 13c-5 1-8-2-8-7 5-1 8 2 8 7Z"></path>
+          <path d="M12 15c5 1 8-2 8-7-5-1-8 2-8 7Z"></path>
         </svg>
-      </div>
-      <div class="state-text">
-        <span class="state-badge" id="state-label">Učitavanje…</span>
-        <p class="state-reason" id="state-reason">Povezivanje sa biljkom…</p>
+        Profil biljke
+      </span>
+      <div class="row-end">
+        <div class="select-wrap">
+          <select id="profile-select" aria-label="Profil biljke"></select>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--txt3)"
+               stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg>
+        </div>
+        <button id="profile-add" class="icon-btn" type="button" aria-label="Novi profil">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.4" stroke-linecap="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14"></path>
+          </svg>
+        </button>
       </div>
     </section>
 
-    <!-- Poslednja očitavanja -->
-    <section>
-      <h2 class="section-title">Poslednja očitavanja</h2>
-      <div class="readings-grid" id="readings-grid"></div>
-    </section>
+    <!-- Očitavanja -->
+    <h2 class="sec-title">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--leaf)"
+           stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+        <path d="M12 21v-7"></path>
+        <path d="M12 14C6 14 3 11 3 5c6 0 9 3 9 9Z" fill="var(--leaf)" fill-opacity=".25"></path>
+      </svg>
+      Poslednja očitavanja
+    </h2>
+    <section class="card list" id="readings-grid"></section>
 
-    <!-- Istorija po senzoru -->
-    <section>
-      <div class="history-head">
-        <h2 class="section-title">Istorija</h2>
+    <!-- Zalivanje -->
+    <div id="pump-section" hidden>
+      <h2 class="sec-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--leaf)" aria-hidden="true">
+          <path d="M12 2.5c4.2 4.7 6.5 8.2 6.5 11.3A6.5 6.5 0 0 1 5.5 13.8C5.5 10.7 7.8 7.2 12 2.5Z"></path>
+        </svg>
+        Zalivanje
+      </h2>
+      <section class="card list">
+        <div class="pump-last" id="pump-last"></div>
+        <ol class="pump-log" id="pump-log"></ol>
+      </section>
+    </div>
+
+    <!-- Istorija -->
+    <div class="sec-head">
+      <h2 class="sec-title">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--leaf)"
+             stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 3v16.5A1.5 1.5 0 0 0 4.5 21H21"></path>
+          <path d="m7 15 3.5-4 3 2.5L20 7"></path>
+        </svg>
+        Istorija
+      </h2>
+      <div class="select-wrap pill">
         <select id="hours-select" aria-label="Vremenski opseg">
           <option value="1">1h</option>
           <option value="6">6h</option>
           <option value="24" selected>24h</option>
           <option value="168">7 dana</option>
         </select>
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--txt2)"
+             stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg>
       </div>
-      <div class="charts" id="charts"></div>
-    </section>
-  </main>
+    </div>
+    <section class="card list" id="charts"></section>
 
-  <footer class="statusbar">
-    <span class="status-dot" id="status-dot"></span>
-    <span id="status-text">Povezivanje…</span>
-  </footer>
+    <div class="tail"></div>
 
-  <script src="/static/vendor/chart.umd.min.js"></script>
+    <footer class="statusbar">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Povezivanje…</span>
+    </footer>
+
+  </div>
+
+
+  <!-- Novi profil: vrednosti se upisuju iz merenja na samoj biljci -->
+  <dialog id="profile-dialog" class="sheet" aria-labelledby="sheet-title">
+    <form id="profile-form" novalidate>
+      <div class="sheet-head">
+        <h2 id="sheet-title">Novi profil</h2>
+        <button type="button" class="icon-btn" id="profile-cancel" aria-label="Zatvori">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2.6" stroke-linecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18"></path>
+          </svg>
+        </button>
+      </div>
+
+      <p class="sheet-note">
+        Prag žeđi se najlakše dobija merenjem: pogledaj šta dashboard pokazuje kad je
+        zemlja suva taman toliko da biljku treba zaliti, i upiši tu vrednost. Po njoj
+        uređaj odlučuje kada da pusti pumpu.
+      </p>
+
+      <label class="fld">
+        <span class="fld-name">Naziv</span>
+        <input id="f-name" type="text" maxlength="60" placeholder="npr. Monstera u dnevnoj"
+               autocomplete="off" required>
+      </label>
+
+      <div class="fld-group">
+        <div class="fld-title">Vlažnost tla <span class="fld-unit">%</span></div>
+        <div class="fld-grid three">
+          <label class="fld"><span class="fld-name">Prag žeđi</span>
+            <input id="f-soil-thirsty" type="number" min="0" max="100" inputmode="numeric" required></label>
+          <label class="fld"><span class="fld-name">Idealno od</span>
+            <input id="f-soil-lo" type="number" min="0" max="100" inputmode="numeric" required></label>
+          <label class="fld"><span class="fld-name">Idealno do</span>
+            <input id="f-soil-hi" type="number" min="0" max="100" inputmode="numeric" required></label>
+        </div>
+        <p class="fld-hint" id="hint-soil"></p>
+      </div>
+
+      <div class="fld-group">
+        <div class="fld-title">Svetlost <span class="fld-unit">lux</span></div>
+        <div class="fld-grid">
+          <label class="fld"><span class="fld-name">Najmanje</span>
+            <input id="f-light-min" type="number" min="0" inputmode="numeric" required></label>
+          <label class="fld"><span class="fld-name">Idealno</span>
+            <input id="f-light-ideal" type="number" min="0" inputmode="numeric" required></label>
+        </div>
+        <p class="fld-hint" id="hint-light"></p>
+      </div>
+
+      <div class="fld-group">
+        <div class="fld-title">Temperatura <span class="fld-unit">°C</span></div>
+        <div class="fld-grid">
+          <label class="fld"><span class="fld-name">Najmanje</span>
+            <input id="f-temp-min" type="number" inputmode="numeric" required></label>
+          <label class="fld"><span class="fld-name">Najviše</span>
+            <input id="f-temp-max" type="number" inputmode="numeric" required></label>
+        </div>
+        <p class="fld-hint" id="hint-temp"></p>
+      </div>
+
+      <label class="fld-check">
+        <input id="f-activate" type="checkbox" checked>
+        <span>Odmah primeni na biljku</span>
+      </label>
+
+      <p class="sheet-err" id="profile-error" hidden></p>
+
+      <button type="submit" class="btn-primary" id="profile-save">Sačuvaj profil</button>
+    </form>
+  </dialog>
+
   <script src="/static/app.js"></script>
 </body>
 </html>
