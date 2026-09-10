@@ -17,6 +17,7 @@
 #define SOIL_PIN 34
 #define LDR_PIN  35
 #define DHT_PIN  4
+#define PUMP_PIN 26
 
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 SimpleDHT11 dht11(DHT_PIN);
@@ -55,6 +56,28 @@ const unsigned long WIFI_RETRY_MS     = 10000;
 const unsigned long BLINK_INTERVAL_MS = 4000;
 const unsigned long BLINK_DURATION_MS = 150;
 
+// Vecina relej modula ukljucuje na nizak nivo, pa je HIGH iskljuceno.
+const bool PUMP_ACTIVE_LOW = true;
+
+// Prag zedji stize sa servera uz stanje, iz aktivnog profila biljke, i cuva se
+// za slucaj da server prestane da odgovara. Vrednost ispod vazi samo do prvog
+// uspesnog odgovora.
+float soilThirstyPct = 30.0;
+
+const unsigned long PUMP_BURST_MS    = 5000;
+const unsigned long PUMP_COOLDOWN_MS = 30UL * 60UL * 1000UL;
+const unsigned long DAY_MS           = 24UL * 60UL * 60UL * 1000UL;
+const int PUMP_MAX_PER_DAY = 3;
+const int PUMP_DRY_STREAK  = 3;
+
+int  devicePump    = -1;
+int  dryStreak     = 0;
+int  pumpRunsToday = 0;
+bool pumpRunning   = false;
+unsigned long pumpStart   = 0;
+unsigned long lastPumpEnd = 0;
+unsigned long dayStart    = 0;
+
 unsigned long lastReadTime = 0;
 unsigned long lastWifiTry  = 0;
 bool everRead = false;
@@ -77,6 +100,12 @@ bool beginRequest(HTTPClient &http, const String &path) {
 }
 
 void setup() {
+  // Prvo od svega. digitalWrite pre pinMode postavlja izlazni registar, pa pin
+  // ne trepne u nulu u trenutku kad postane izlaz i ne okine relej.
+  pumpOff();
+  pinMode(PUMP_PIN, OUTPUT);
+  pumpOff();
+
   Serial.begin(115200);
   delay(2000);
   displayReady = display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
@@ -114,6 +143,7 @@ void loop() {
     readAndSend();
   }
 
+  updatePump(millis());
   updateFace(millis());
   delay(20);
 }
@@ -144,13 +174,19 @@ void readAndSend() {
   postReading(deviceLight, lux, "lux");
 
   String state = getPlantState();
+  bool thirsty;
   if (state == "offline") {
     showMessage("Nema veze sa", "serverom");
     currentMood   = MOOD_NONE;
     lastDrawnMood = MOOD_NONE;
+    thirsty = (soilPct < soilThirstyPct);   // bez servera procenjuje sam
   } else {
     currentMood = moodFromState(state);
+    thirsty = (state == "thirsty");
   }
+
+  dryStreak = thirsty ? dryStreak + 1 : 0;
+  maybeWater(millis());
 }
 
 void ensureWifi() {
@@ -226,10 +262,12 @@ void loadDeviceIds() {
     if (type == "soil_humidity")             deviceSoil  = id;
     else if (type == "temperature_humidity") deviceTemp  = id;
     else if (type == "light")                deviceLight = id;
+    else if (type == "pump")                 devicePump  = id;
   }
   Serial.println("Uredjaji: tlo=" + String(deviceSoil) +
                  " temp=" + String(deviceTemp) +
-                 " svetlost=" + String(deviceLight));
+                 " svetlost=" + String(deviceLight) +
+                 " pumpa=" + String(devicePump));
 }
 
 void postReading(int deviceId, float value, String unit) {
@@ -267,9 +305,56 @@ String getPlantState() {
   deserializeJson(doc, payload);
   String state  = doc["state"].as<String>();
   String reason = doc["reason"].as<String>();
+
+  if (!doc["profile"]["soil_thirsty"].isNull()) {
+    soilThirstyPct = doc["profile"]["soil_thirsty"].as<float>();
+  }
   Serial.println("Stanje: " + state);
   Serial.println("Razlog: " + reason);
   return state;
+}
+
+void pumpOff() { digitalWrite(PUMP_PIN, PUMP_ACTIVE_LOW ? HIGH : LOW); }
+void pumpOn()  { digitalWrite(PUMP_PIN, PUMP_ACTIVE_LOW ? LOW  : HIGH); }
+
+// Svi uslovi na jednom mestu, da se vidi zasto zalivanje nije poceo.
+void maybeWater(unsigned long now) {
+  if (now - dayStart >= DAY_MS) {
+    dayStart = now;
+    pumpRunsToday = 0;
+  }
+
+  if (pumpRunning) return;
+  if (dryStreak < PUMP_DRY_STREAK) return;
+
+  if (lastPumpEnd != 0 && now - lastPumpEnd < PUMP_COOLDOWN_MS) {
+    Serial.println("Zedna je, ali je pauza posle zalivanja jos u toku.");
+    return;
+  }
+  if (pumpRunsToday >= PUMP_MAX_PER_DAY) {
+    Serial.println("Zedna je, ali je dnevni limit zalivanja dostignut.");
+    return;
+  }
+
+  pumpOn();
+  pumpRunning = true;
+  pumpStart   = now;
+  pumpRunsToday++;
+  dryStreak = 0;
+  Serial.println("Zalivanje poceto, " + String(PUMP_BURST_MS / 1000) + "s");
+}
+
+// Zove se iz petlje na svakih 20 ms, pa impuls traje tacno koliko treba
+// bez obzira na to sta se desava sa mrezom.
+void updatePump(unsigned long now) {
+  if (!pumpRunning) return;
+  if (now - pumpStart < PUMP_BURST_MS) return;
+
+  pumpOff();
+  pumpRunning = false;
+  lastPumpEnd = now;
+  Serial.println("Zalivanje zavrseno");
+  postReading(devicePump, PUMP_BURST_MS / 1000.0, "s");
 }
 
 Mood moodFromState(const String &state) {

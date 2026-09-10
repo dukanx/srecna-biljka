@@ -43,6 +43,7 @@ DEVICES = [
     ("soil_humidity",        "Senzor vlažnosti tla",   "saksija", "%"),
     ("temperature_humidity", "DHT11 temp/vlažnost",    "saksija", "C"),
     ("light",                "LDR senzor svetlosti",   "saksija", "lux"),
+    ("pump",                 "Pumpa za zalivanje",     "saksija", "s"),
 ]
 
 # Vrednosti po stanju. Pragovi (vidi plant.py):
