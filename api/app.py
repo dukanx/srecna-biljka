@@ -7,7 +7,7 @@ import psycopg2.extras
 from db import get_connection, init_db  # db importuje dotenv -> .env učitan pre push modula
 import push
 from plant import (fetch_latest_readings, fetch_active_profile, evaluate_state,
-                   STATE_LABEL)
+                   should_notify, STATE_LABEL)
 
 app = Flask(__name__)
 
@@ -229,6 +229,10 @@ def _check_state_change_and_notify(conn):
     )
     conn.commit()
     cur.close()
+
+    if not should_notify(state):
+        print(f"[state] promena stanja -> {state}; push se ne šalje za ovo stanje")
+        return
 
     payload = {
         "title": f"Srećna biljka — {STATE_LABEL.get(state, state)}",

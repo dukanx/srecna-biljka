@@ -41,7 +41,7 @@ int deviceLight = -1;
 
 bool displayReady = false;
 
-enum Mood { MOOD_NONE, MOOD_HAPPY, MOOD_THIRSTY, MOOD_SLEEPY, MOOD_ANGRY };
+enum Mood { MOOD_NONE, MOOD_HAPPY, MOOD_THIRSTY, MOOD_SLEEPY, MOOD_ANGRY, MOOD_NIGHT };
 
 Mood currentMood   = MOOD_NONE;
 Mood lastDrawnMood = MOOD_NONE;
@@ -277,6 +277,7 @@ Mood moodFromState(const String &state) {
   if (state == "thirsty") return MOOD_THIRSTY;
   if (state == "sleepy")  return MOOD_SLEEPY;
   if (state == "angry")   return MOOD_ANGRY;
+  if (state == "night")   return MOOD_NIGHT;
   return MOOD_NONE;
 }
 
@@ -299,9 +300,10 @@ void drawEyebrow(int cx, int cy, int width, bool innerUp, bool isLeft) {
   display.drawLine(cx - width / 2, leftY, cx + width / 2, rightY, SSD1306_WHITE);
 }
 
-// curve > 0 osmeh, < 0 mrgud. Skala 3 drzi krajeve izmedju ociju i donje ivice;
-// sa vecom skalom osmeh ulazi u oci a mrgud ispada sa ekrana.
-void drawMouth(int cx, int cy, int halfWidth, float curve) {
+// Parabola: curve > 0 krajevi gore, < 0 krajevi dole. Sluzi i za usta i za
+// zatvorene oci. Skala 3 drzi krajeve izmedju ociju i donje ivice; sa vecom
+// skalom osmeh ulazi u oci a mrgud ispada sa ekrana.
+void drawArc(int cx, int cy, int halfWidth, float curve) {
   int prevX = cx - halfWidth;
   // Prva tacka mora da krene sa same krive. Ako se krene od cy, prvi potez
   // je uspravna crta na levom kraju usta.
@@ -323,26 +325,49 @@ void drawDrop(int cx, int cy) {
 
 // Panel je dvobojan: gornjih 16 redova je zuto, ostalo plavo. Obrve su cele
 // u zutom pojasu, kap cela u plavom, da nijedan element ne preseca granicu.
+void drawZzz() {
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  const int xs[] = {104, 111, 118};
+  const int ys[] = { 40,  31,  22};
+  for (int i = 0; i < 3; i++) {
+    display.setCursor(xs[i], ys[i]);
+    display.print("z");
+  }
+}
+
+// Zatvorene oci se ne otvaraju zbog trepnuca; spavanje i trepnuce se ne mesaju.
+bool moodBlinks(Mood mood) {
+  return mood == MOOD_HAPPY || mood == MOOD_THIRSTY || mood == MOOD_ANGRY;
+}
+
 void drawFace(Mood mood, bool blinkClosed) {
   const int eyeY = 24, eyeR = 12, leftX = 40, rightX = 88;
 
   float openness  = 1.0;
   float mouthCurve = 0.0;
   bool brows = false, browsUp = false, drop = false;
+  bool closedEyes = false, zzz = false;
 
   switch (mood) {
-    case MOOD_HAPPY:   openness = 1.0;  mouthCurve =  3.0; break;
-    case MOOD_THIRSTY: openness = 0.7;  mouthCurve = -2.5; brows = true; browsUp = true;  drop = true; break;
-    case MOOD_SLEEPY:  openness = 0.25; mouthCurve =  0.5; break;
-    case MOOD_ANGRY:   openness = 0.6;  mouthCurve = -2.5; brows = true; browsUp = false; break;
+    case MOOD_HAPPY:   openness = 1.0; mouthCurve =  3.0; break;
+    case MOOD_THIRSTY: openness = 0.7; mouthCurve = -2.5; brows = true; browsUp = true;  drop = true; break;
+    case MOOD_SLEEPY:  closedEyes = true; mouthCurve = 0.5; break;
+    case MOOD_ANGRY:   openness = 0.6; mouthCurve = -2.5; brows = true; browsUp = false; break;
+    case MOOD_NIGHT:   closedEyes = true; mouthCurve = 1.5; zzz = true; break;
     default: return;
   }
 
-  if (blinkClosed) openness = 0.08;
+  if (blinkClosed) { openness = 0.08; closedEyes = false; }
 
   display.clearDisplay();
-  drawEye(leftX,  eyeY, eyeR, openness);
-  drawEye(rightX, eyeY, eyeR, openness);
+  if (closedEyes) {
+    drawArc(leftX,  eyeY, 11, 2.0);
+    drawArc(rightX, eyeY, 11, 2.0);
+  } else {
+    drawEye(leftX,  eyeY, eyeR, openness);
+    drawEye(rightX, eyeY, eyeR, openness);
+  }
 
   if (brows && !blinkClosed) {
     int browY = eyeY - eyeR - 6;
@@ -350,9 +375,10 @@ void drawFace(Mood mood, bool blinkClosed) {
     drawEyebrow(rightX, browY, 16, browsUp, false);
   }
 
-  drawMouth(64, 52, 20, mouthCurve);
+  drawArc(64, 52, 20, mouthCurve);
 
   if (drop && !blinkClosed) drawDrop(20, 40);
+  if (zzz) drawZzz();
 
   display.display();
 }
@@ -360,6 +386,15 @@ void drawFace(Mood mood, bool blinkClosed) {
 // Crta samo kad se nesto promeni, da se ekran ne osvezava dvadeset puta u sekundi.
 void updateFace(unsigned long now) {
   if (!displayReady || currentMood == MOOD_NONE) return;
+
+  if (!moodBlinks(currentMood)) {
+    if (currentMood != lastDrawnMood || lastDrawnBlink) {
+      drawFace(currentMood, false);
+      lastDrawnMood  = currentMood;
+      lastDrawnBlink = false;
+    }
+    return;
+  }
 
   if (!isBlinking && now - lastBlinkEnd >= BLINK_INTERVAL_MS) {
     isBlinking = true;
