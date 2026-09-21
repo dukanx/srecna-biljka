@@ -47,6 +47,14 @@ def init_db():
         );
     """)
 
+    # Stanje biljke traži poslednje očitavanje svakog uređaja pri svakom upisu i
+    # pri svakoj Render proveri zdravlja. Bez indeksa je to sortiranje cele
+    # tabele, koja raste oko 8600 redova dnevno.
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS readings_device_time
+        ON readings (device_id, recorded_at DESC);
+    """)
+
     # Web Push pretplate (jedan red = jedan browser koji je dao dozvolu)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS push_subscriptions (

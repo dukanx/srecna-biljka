@@ -58,14 +58,22 @@ def should_notify(state, now=None):
 def fetch_latest_readings(conn):
     """Vrati dict {tip_senzora: {value, unit, recorded_at}} sa poslednjim očitavanjem po tipu."""
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    # Po jedan skok kroz indeks readings_device_time za svaki uređaj, umesto
+    # sortiranja cele tabele. Trajanje ne zavisi od broja upisanih redova.
     cur.execute("""
         SELECT DISTINCT ON (d.type)
             d.type,
             r.value,
             r.unit,
             r.recorded_at
-        FROM readings r
-        JOIN devices d ON r.device_id = d.id
+        FROM devices d
+        CROSS JOIN LATERAL (
+            SELECT value, unit, recorded_at
+            FROM readings
+            WHERE device_id = d.id
+            ORDER BY recorded_at DESC
+            LIMIT 1
+        ) r
         WHERE d.status = 'active'
         ORDER BY d.type, r.recorded_at DESC
     """)
