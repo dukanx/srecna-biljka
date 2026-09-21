@@ -132,6 +132,9 @@ html, body {
 
 svg { display: block; }
 
+/* Klase sa display:flex bi inace nadjacale atribut hidden. */
+[hidden] { display: none !important; }
+
 .card {
   background: var(--card);
   border-radius: 22px;

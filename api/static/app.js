@@ -142,7 +142,7 @@ const FACES = {
   thirsty: { openness: 0.7, curve: -2.5, brows: "up",   drop: true  },
   sleepy:  { closed: true,  curve:  0.5, brows: null,   drop: false },
   angry:   { openness: 0.6, curve: -2.5, brows: "down", drop: false },
-  night:   { closed: true,  curve:  1.5, brows: null,   drop: false, zzz: true },
+  night:   { closed: true,  curve:  1.2, brows: null,   drop: false, zzz: true, sink: 3 },
 };
 
 function fbNew() { return new Uint8Array(OLED_W * OLED_H); }
@@ -259,7 +259,9 @@ function buildFace(state, blink) {
   if (!f) return null;
 
   const fb = fbNew();
-  const eyeY = 24, eyeR = 12, leftX = 40, rightX = 88;
+  // sink: lice koje spava sedi nize, isto kao na uredjaju.
+  const sink = f.sink || 0;
+  const eyeY = 24 + sink, mouthY = 52 + sink, eyeR = 12, leftX = 40, rightX = 88;
   const closed = f.closed && !blink;
 
   if (closed) {
@@ -277,12 +279,16 @@ function buildFace(state, blink) {
     drawEyebrow(fb, rightX, browY, 16, f.brows === "up", false);
   }
 
-  drawArc(fb, 64, 52, 20, f.curve);
+  drawArc(fb, 64, mouthY, 20, f.curve);
   if (f.drop && !blink) drawDrop(fb, 20, 40);
   if (f.zzz) {
-    drawZ(fb, 104, 40, 5);
-    drawZ(fb, 111, 31, 5);
-    drawZ(fb, 118, 22, 5);
+    // Uredjaj crta slovo iz fonta, platno ga sastavlja iz tri poteza, pa se
+    // ovde upisuje vrh mastila umesto pozicije kursora. Slovo z je 5 piksela
+    // po koraku GFX-a, a drawZ crta i prvi i poslednji red, pa mu ide 5n-1.
+    // Sva tri z-a su unutar gornjih 16 redova, koji su na panelu zuti.
+    drawZ(fb, 90, 11, 4);
+    drawZ(fb, 99, 7, 4);
+    drawZ(fb, 109, 4, 9);
   }
 
   return fb;
@@ -595,15 +601,24 @@ function measuredHint(elementId, type, unit) {
     r ? `Sada izmereno: ${Math.round(r.value * 10) / 10} ${unit}` : "";
 }
 
-function openProfileDialog() {
+// null dok se pravi novi profil, inače id profila koji se menja.
+let editingProfileId = null;
+
+function openProfileDialog(editing) {
   const p = activeProfile || {};
+  editingProfileId = editing && p.id ? p.id : null;
 
   // Polja kreću od aktivnog profila, pa se menja samo ono što se razlikuje.
-  document.getElementById("f-name").value = "";
+  document.getElementById("f-name").value = editingProfileId ? p.name : "";
   for (const [field, id] of Object.entries(PROFILE_FIELDS)) {
     if (field !== "name") document.getElementById(id).value = p[field] ?? "";
   }
   document.getElementById("f-activate").checked = true;
+  document.getElementById("activate-row").hidden = editingProfileId !== null;
+  document.getElementById("sheet-title").textContent =
+    editingProfileId ? "Izmena profila" : "Novi profil";
+  document.getElementById("profile-save").textContent =
+    editingProfileId ? "Sačuvaj izmene" : "Sačuvaj profil";
   profileError("");
 
   // Izmereno stoji uz polja jer se prag postavlja upravo prema njemu.
@@ -652,8 +667,8 @@ async function submitProfile(event) {
   const button = document.getElementById("profile-save");
   button.disabled = true;
   try {
-    const res = await fetch("/api/profiles", {
-      method: "POST",
+    const res = await fetch(editingProfileId ? `/api/profiles/${editingProfileId}` : "/api/profiles", {
+      method: editingProfileId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json", "X-API-Key": key },
       body: JSON.stringify(body),
     });
@@ -668,7 +683,8 @@ async function submitProfile(event) {
 
     localStorage.setItem("apiKey", key);
     document.getElementById("profile-dialog").close();
-    setStatus(body.activate ? "Profil napravljen i primenjen." : "Profil napravljen.", "ok");
+    setStatus(editingProfileId ? "Profil izmenjen."
+              : body.activate ? "Profil napravljen i primenjen." : "Profil napravljen.", "ok");
     await loadProfiles();
     await refresh();
   } catch (e) {
@@ -827,7 +843,8 @@ async function init() {
 
   document.getElementById("profile-select")
     .addEventListener("change", (e) => changeProfile(e.target.value));
-  document.getElementById("profile-add").addEventListener("click", openProfileDialog);
+  document.getElementById("profile-add").addEventListener("click", () => openProfileDialog(false));
+  document.getElementById("profile-edit").addEventListener("click", () => openProfileDialog(true));
   document.getElementById("profile-cancel")
     .addEventListener("click", () => document.getElementById("profile-dialog").close());
   document.getElementById("profile-form").addEventListener("submit", submitProfile);

@@ -1,6 +1,6 @@
 /* Service worker — Srećna biljka PWA */
 
-const CACHE = "srecna-biljka-v8";
+const CACHE = "srecna-biljka-v10";
 
 // App shell koji keširamo da dashboard radi i offline
 const APP_SHELL = [

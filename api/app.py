@@ -396,6 +396,53 @@ def create_profile():
     return jsonify(profile), 201
 
 
+@app.route("/api/profiles/<int:profile_id>", methods=["PUT"])
+@require_api_key
+def update_profile(profile_id):
+    """Menja pragove postojećeg profila. Ako je aktivan, uređaj ih preuzima
+    uz sledeće stanje, bez ponovnog flešovanja."""
+    data = request.get_json() or {}
+    values, error = _validate_profile(data)
+    if error:
+        return jsonify({"error": error}), 400
+
+    conn = get_connection()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute("SELECT id FROM plant_profiles WHERE id = %s", (profile_id,))
+    if cur.fetchone() is None:
+        cur.close()
+        conn.close()
+        return jsonify({"error": f"Profil sa ID={profile_id} ne postoji"}), 404
+
+    cur.execute(
+        "SELECT name FROM plant_profiles WHERE lower(name) = lower(%s) AND id <> %s",
+        (values["name"], profile_id)
+    )
+    postojeci = cur.fetchone()
+    if postojeci is not None:
+        cur.close()
+        conn.close()
+        return jsonify({"error": f"Profil pod nazivom \"{postojeci['name']}\" već postoji"}), 409
+
+    cur.execute(
+        """
+        UPDATE plant_profiles
+        SET name = %s, soil_thirsty = %s, soil_ideal_lo = %s, soil_ideal_hi = %s,
+            light_min = %s, light_ideal = %s, temp_min = %s, temp_max = %s
+        WHERE id = %s
+        RETURNING *
+        """,
+        (values["name"], values["soil_thirsty"], values["soil_ideal_lo"],
+         values["soil_ideal_hi"], values["light_min"], values["light_ideal"],
+         values["temp_min"], values["temp_max"], profile_id)
+    )
+    profile = cur.fetchone()
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify(profile), 200
+
+
 @app.route("/api/profiles/active", methods=["PUT"])
 @require_api_key
 def set_active_profile():

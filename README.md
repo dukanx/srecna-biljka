@@ -89,6 +89,7 @@ the top of `sketch/sketch.ino`.
 | `GET` | `/api/plant/history` | state transitions over time |
 | `GET` | `/api/profiles` | plant profiles (thresholds) |
 | `POST` | `/api/profiles` | create a profile from measured values |
+| `PUT` | `/api/profiles/<id>` | change a profile's thresholds |
 | `PUT` | `/api/profiles/active` | switch the active profile |
 | `GET` | `/api/vapid-public-key` | public key for push subscription |
 | `POST` | `/api/push/subscribe`, `/unsubscribe`, `/test` | push subscription management |

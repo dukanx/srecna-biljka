@@ -410,12 +410,17 @@ void drawDrop(int cx, int cy) {
 
 // Panel je dvobojan: gornjih 16 redova je zuto, ostalo plavo. Obrve su cele
 // u zutom pojasu, kap cela u plavom, da nijedan element ne preseca granicu.
+// Tri z rastu ka gore-desno, iznad lica. Sva tri staju celo u gornjih 16 redova
+// panela, koji su fizicki zuti, pa su jednobojna: zuti zzz nad plavim licem.
+// Slovo z u GFX fontu pocinje 2 reda po koraku ispod vrha celije i visoko je
+// 5 redova po koraku, po cemu su racunate ove pozicije.
 void drawZzz() {
-  display.setTextSize(1);
   display.setTextColor(SSD1306_WHITE);
-  const int xs[] = {104, 111, 118};
-  const int ys[] = { 40,  31,  22};
+  const int xs[]    = { 90,  99, 109};
+  const int ys[]    = {  9,   5,   0};
+  const int sizes[] = {  1,   1,   2};
   for (int i = 0; i < 3; i++) {
+    display.setTextSize(sizes[i]);
     display.setCursor(xs[i], ys[i]);
     display.print("z");
   }
@@ -427,7 +432,10 @@ bool moodBlinks(Mood mood) {
 }
 
 void drawFace(Mood mood, bool blinkClosed) {
-  const int eyeY = 24, eyeR = 12, leftX = 40, rightX = 88;
+  const int eyeR = 12, leftX = 40, rightX = 88;
+
+  // Lice koje spava sedi malo nize, da se ne priljubi uz zzz iznad njega.
+  int eyeY = 24, mouthY = 52;
 
   float openness  = 1.0;
   float mouthCurve = 0.0;
@@ -439,7 +447,7 @@ void drawFace(Mood mood, bool blinkClosed) {
     case MOOD_THIRSTY: openness = 0.7; mouthCurve = -2.5; brows = true; browsUp = true;  drop = true; break;
     case MOOD_SLEEPY:  closedEyes = true; mouthCurve = 0.5; break;
     case MOOD_ANGRY:   openness = 0.6; mouthCurve = -2.5; brows = true; browsUp = false; break;
-    case MOOD_NIGHT:   closedEyes = true; mouthCurve = 1.5; zzz = true; break;
+    case MOOD_NIGHT:   closedEyes = true; mouthCurve = 1.2; zzz = true; eyeY += 3; mouthY += 3; break;
     default: return;
   }
 
@@ -460,7 +468,7 @@ void drawFace(Mood mood, bool blinkClosed) {
     drawEyebrow(rightX, browY, 16, browsUp, false);
   }
 
-  drawArc(64, 52, 20, mouthCurve);
+  drawArc(64, mouthY, 20, mouthCurve);
 
   if (drop && !blinkClosed) drawDrop(20, 40);
   if (zzz) drawZzz();
