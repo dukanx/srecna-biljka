@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Srećna biljka</title>
+  <rect width="1024" height="1024" fill="#E3EBDC"/>
+  <line x1="512" y1="456" x2="512" y2="400" stroke="#2C7A5B" stroke-width="28" stroke-linecap="round"/>
+  <g transform="rotate(-68 512 400)">
+    <path fill="#2C7A5B" d="M 512 400 C 440 356, 446 258, 512 222 C 578 258, 584 356, 512 400 Z"/>
+    <path fill="#3E9470" d="M 512 400 C 584 356, 578 258, 512 222 Z"/>
+    <g fill="none" stroke="#E3EBDC" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="512" y1="380" x2="512" y2="264" stroke-width="8"/>
+      <polyline points="512,350 488,328 488,308" stroke-width="6"/>
+      <polyline points="512,316 536,294 536,278" stroke-width="6"/>
+    </g>
+    <g fill="#E3EBDC">
+      <circle cx="512" cy="258" r="10"/>
+      <circle cx="488" cy="302" r="8"/>
+      <circle cx="536" cy="272" r="8"/>
+    </g>
+  </g>
+  <g transform="rotate(68 512 400)">
+    <path fill="#2C7A5B" d="M 512 400 C 440 356, 446 258, 512 222 C 578 258, 584 356, 512 400 Z"/>
+    <path fill="#3E9470" d="M 512 400 C 440 356, 446 258, 512 222 Z"/>
+    <g fill="none" stroke="#E3EBDC" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="512" y1="380" x2="512" y2="264" stroke-width="8"/>
+      <polyline points="512,350 536,328 536,308" stroke-width="6"/>
+      <polyline points="512,316 488,294 488,278" stroke-width="6"/>
+    </g>
+    <g fill="#E3EBDC">
+      <circle cx="512" cy="258" r="10"/>
+      <circle cx="536" cy="302" r="8"/>
+      <circle cx="488" cy="272" r="8"/>
+    </g>
+  </g>
+  <rect x="232" y="452" width="560" height="330" rx="56" fill="#05070A"/>
+  <g fill="#57D3EE">
+    <ellipse cx="422" cy="590" rx="48" ry="62"/>
+    <ellipse cx="602" cy="590" rx="48" ry="62"/>
+  </g>
+  <path d="M 462 700 Q 512 742 562 700" fill="none" stroke="#57D3EE" stroke-width="32" stroke-linecap="round"/>
+</svg>

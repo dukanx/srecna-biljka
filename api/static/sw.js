@@ -1,6 +1,6 @@
 /* Service worker — Srećna biljka PWA */
 
-const CACHE = "srecna-biljka-v10";
+const CACHE = "srecna-biljka-v11";
 
 // App shell koji keširamo da dashboard radi i offline
 const APP_SHELL = [
@@ -8,8 +8,10 @@ const APP_SHELL = [
   "/manifest.json",
   "/static/style.css",
   "/static/app.js",
+  "/static/icons/srecna-biljka.svg",
   "/static/icons/srecna-biljka-192.png",
   "/static/icons/srecna-biljka-512.png",
+  "/static/icons/apple-touch-icon.png",
 ];
 
 self.addEventListener("install", (event) => {

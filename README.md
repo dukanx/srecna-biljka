@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="api/static/icons/srecna-biljka-192.png" width="96" alt="Srećna biljka">
+  <img src="api/static/icons/srecna-biljka-rounded-512.png" width="96" alt="Srećna biljka">
 </p>
 
 <h1 align="center">Srećna biljka</h1>
