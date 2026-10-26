@@ -1,5 +1,6 @@
 import functools
 import os
+from datetime import timezone
 
 from flask import Flask, jsonify, request, send_from_directory
 import psycopg2.extras
@@ -288,7 +289,10 @@ def get_plant_history():
         history.setdefault(row["type"], []).append({
             "value": row["value"],
             "unit": row["unit"],
-            "recorded_at": row["recorded_at"].isoformat(),
+            # Kolona je TIMESTAMP bez zone, a Postgres u nju upisuje UTC. Bez
+            # oznake zone JavaScript bi string pročitao kao lokalno vreme i
+            # pomerio ceo grafikon za razliku od UTC-a.
+            "recorded_at": row["recorded_at"].replace(tzinfo=timezone.utc).isoformat(),
         })
 
     return jsonify(history), 200
@@ -512,6 +516,20 @@ def push_test():
     })
     conn.close()
     return jsonify({"status": "sent", "count": sent}), 200
+
+
+# ── Provera živosti ─────────────────────────────────────────────
+@app.route("/healthz")
+def healthz():
+    """Namerno ne dira bazu.
+
+    Render zove ovu putanju neprekidno dok servis radi, i restartuje servis ako
+    ne odgovori. Dok je to bila /api/plant/state, svaka provera je otvarala
+    konekciju na Postgres: baza se nikad nije suspendovala, a spora baza je
+    izgledala kao mrtva aplikacija. Restart aplikacije ne popravlja bazu, pa
+    provera koja pokreće restart sme da meri samo sam proces.
+    """
+    return jsonify({"status": "ok"}), 200
 
 
 # ── PWA dashboard (statika) ─────────────────────────────────────

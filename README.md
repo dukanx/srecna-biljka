@@ -93,6 +93,7 @@ the top of `sketch/sketch.ino`.
 | `PUT` | `/api/profiles/active` | switch the active profile |
 | `GET` | `/api/vapid-public-key` | public key for push subscription |
 | `POST` | `/api/push/subscribe`, `/unsubscribe`, `/test` | push subscription management |
+| `GET` | `/healthz` | liveness probe, never touches the database |
 | `GET` | `/dashboard` | PWA dashboard |
 
 ## Running it

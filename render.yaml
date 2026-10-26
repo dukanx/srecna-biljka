@@ -4,7 +4,9 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: free
-    healthCheckPath: /api/plant/state
+    # Namerno ruta bez baze: Render je zove neprekidno, pa bi provera preko
+    # baze držala Neon compute budnim i kad uređaj ne šalje ništa.
+    healthCheckPath: /healthz
     envVars:
       # Sve se unosi u Render dashboardu - nista tajno ne ide u repozitorijum.
       - key: DATABASE_URL      # connection string iz Neon-a
